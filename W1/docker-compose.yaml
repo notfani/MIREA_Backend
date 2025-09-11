@@ -1,0 +1,28 @@
+services:
+
+  db:
+    image: mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: appDB
+      MYSQL_USER: admin
+      MYSQL_PASSWORD: qwerty
+    volumes:
+      - db_data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+
+  web:
+    build:
+      context: .
+      dockerfile: dockerfile
+    ports: 
+      - 8000:80
+    depends_on:
+      - db
+    volumes:
+      - .:/var/www/html
+
+volumes:
+  db_data:
