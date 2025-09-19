@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  web:
+    image: php:8.0-apache
+    container_name: php_server_info
+    volumes:
+      - ./:/var/www/html/  # Монтируем текущую директорию в /var/www/html в контейнере
+    environment:
+      APACHE_DOCUMENT_ROOT: /var/www/html  # Устанавливаем корневую директорию для Apache
+    ports:
+      - "8080:80"

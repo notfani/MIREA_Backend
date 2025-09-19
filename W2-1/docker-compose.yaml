@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  web:
+    image: php:8.0-apache
+    container_name: drawer_web
+    ports:
+      - "8080:80"  # Пробрасываем порт 80 контейнера на порт 8080 хоста
+    volumes:
+      - ./:/var/www/html/  # Монтируем текущую директорию в /var/www/html в контейнере
+    environment:
+      APACHE_DOCUMENT_ROOT: /var/www/html  # Устанавливаем корневую директорию для Apache
+    networks:
+      - drawer_network
+
+networks:
+  drawer_network:
+    driver: bridge
