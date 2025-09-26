@@ -1,0 +1,55 @@
+version: "3.9"
+
+services:
+  nginx:
+    build:
+      context: ./nginx
+    container_name: marketplace_nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/html:/usr/share/nginx/html:ro
+    depends_on:
+      - php-apache
+    networks:
+      - frontend
+
+  php-apache:
+    build:
+      context: ./php
+    container_name: marketplace_php
+    volumes:
+      - ./php/src:/var/www/html
+    environment:
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_NAME: ${MYSQL_DATABASE}
+      DB_USER: ${MYSQL_USER}
+      DB_PASS: ${MYSQL_PASSWORD}
+    depends_on:
+      - db
+    networks:
+      - frontend
+      - backend
+
+  db:
+    image: mysql:8.0
+    container_name: marketplace_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    networks:
+      - backend
+
+volumes:
+  db_data:
+
+networks:
+  frontend:
+  backend:

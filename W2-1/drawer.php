@@ -2,7 +2,7 @@
 	include 'functions.php';
 	
 	if (isset($_GET['num'])) {
-		$num = intval($_GET['num']);
+		$num = (int)$_GET['num'];
 		$shape = ($num & 0b11); // 0-3 биты
 		$color = ($num >> 2) & 0b111; // 4-6 биты
 		$width = ($num >> 7) & 0b111111111; // 7-15 биты
@@ -17,4 +17,4 @@
 	} else {
 		echo "Не указан код фигуры.";
 	}
-?>
+
