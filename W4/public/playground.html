@@ -1,0 +1,83 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8"/>
+    <title>GraphQL Playground</title>
+    <link rel="stylesheet"
+          href="https://unpkg.com/graphql-voyager@1.x/dist/voyager.css"/>
+    <style>
+        body {
+            margin: 0;
+            font-family: system-ui, sans-serif;
+        }
+
+        #editor {
+            height: 40vh;
+            border: 1px solid #ccc;
+        }
+
+        #vars {
+            height: 15vh;
+            border: 1px solid #ccc;
+        }
+
+        #result {
+            height: 30vh;
+            border: 1px solid #ccc;
+            padding: 8px;
+            white-space: pre-wrap;
+        }
+
+        button {
+            margin: 8px 0;
+            padding: 6px 18px;
+        }
+    </style>
+</head>
+<body>
+<h2>Запрос / мутация</h2>
+<div id="editor"></div>
+<h3>Переменные (JSON)</h3>
+<div id="vars"></div>
+<button onclick="send()">Отправить</button>
+<h3>Ответ сервера</h3>
+<div id="result"></div>
+
+<!-- CodeMirror для подсветки -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/javascript/javascript.min.js"></script>
+<link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css"/>
+
+<script>
+    const queryEditor = CodeMirror(document.getElementById('editor'), {
+        lineNumbers: true, mode: 'javascript',
+        value: `mutation {
+  createClient(name: "Eve", email: "eve@demo.ru") {
+    id name email
+  }
+}`
+    });
+    const varsEditor = CodeMirror(document.getElementById('vars'), {
+        lineNumbers: true, mode: {name: 'javascript', json: true},
+        value: '{}'
+    });
+
+    async function send() {
+        const query = queryEditor.getValue();
+        const variables = varsEditor.getValue();
+        try {
+            const res = await fetch('/', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({query, variables: JSON.parse(variables)})
+            });
+            const json = await res.json();
+            document.getElementById('result').textContent = JSON.stringify(json, null, 2);
+        } catch (e) {
+            document.getElementById('result').textContent = e.message;
+        }
+    }
+</script>
+</body>
+</html>
