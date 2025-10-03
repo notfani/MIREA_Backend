@@ -1,0 +1,8 @@
+{
+  "name": "mirea/w5-php",
+  "require": {
+    "ext-pdo": "*",
+    "ext-redis": "*"
+  }
+}
+

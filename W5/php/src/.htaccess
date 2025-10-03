@@ -1,0 +1,13 @@
+RewriteEngine On
+
+# API к PHP-роутеру
+RewriteCond %{REQUEST_URI} ^/api/ [NC]
+RewriteRule ^ api/router.php [L,QSA]
+
+# Существующие файлы/папки — отдавать как есть
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# Остальные пути — SPA (клиент)
+RewriteRule ^ public/index.html [L,QSA]
