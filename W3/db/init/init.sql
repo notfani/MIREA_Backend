@@ -1,5 +1,3 @@
--- 01-init.sql
--- Создаём отдельную БД и пользователя (если ещё нет)
 CREATE DATABASE IF NOT EXISTS marketplace CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE USER IF NOT EXISTS 'marketuser'@'%' IDENTIFIED BY 'marketpass123';
 GRANT ALL PRIVILEGES ON marketplace.* TO 'marketuser'@'%';
@@ -9,21 +7,21 @@ USE marketplace;
 
 -- 1. Справочник ролей
 CREATE TABLE roles (
-                       id   TINYINT AUTO_INCREMENT PRIMARY KEY,
-                       name VARCHAR(30) NOT NULL UNIQUE
+                        id   TINYINT AUTO_INCREMENT PRIMARY KEY,
+                        name VARCHAR(30) NOT NULL UNIQUE
 ) ENGINE=InnoDB;
 
 -- 2. Пользователи
 CREATE TABLE users (
-                       id         INT AUTO_INCREMENT PRIMARY KEY,
-                       email      VARCHAR(120) NOT NULL UNIQUE,
-                       pass_hash  CHAR(60)     NOT NULL,
-                       full_name  VARCHAR(120) NOT NULL,
-                       role_id    TINYINT      NOT NULL DEFAULT 2,
-                       created_at TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
-                       updated_at TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                       CONSTRAINT fk_users_role
-                           FOREIGN KEY (role_id) REFERENCES roles(id)
+                        id         INT AUTO_INCREMENT PRIMARY KEY,
+                        email      VARCHAR(120) NOT NULL UNIQUE,
+                        pass_hash  CHAR(60)     NOT NULL,
+                        full_name  VARCHAR(120) NOT NULL,
+                        role_id    TINYINT      NOT NULL DEFAULT 2,
+                        created_at TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                        CONSTRAINT fk_users_role
+                        FOREIGN KEY (role_id) REFERENCES roles(id)
 ) ENGINE=InnoDB;
 
 -- 3. Категории товаров
@@ -36,18 +34,18 @@ CREATE TABLE categories (
 
 -- 4. Товары
 CREATE TABLE products (
-                          id          INT AUTO_INCREMENT PRIMARY KEY,
-                          category_id SMALLINT     NOT NULL,
-                          vendor_code VARCHAR(50)  NOT NULL UNIQUE,
-                          title       VARCHAR(150) NOT NULL,
-                          price       DECIMAL(12,2) NOT NULL CHECK (price >= 0),
-                          in_stock    INT          NOT NULL DEFAULT 0 CHECK (in_stock >= 0),
-                          created_at  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
-                          updated_at  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                          INDEX idx_cat_price (category_id, price),
-                          CONSTRAINT fk_prod_cat
-                              FOREIGN KEY (category_id) REFERENCES categories(id)
-                                  ON DELETE RESTRICT ON UPDATE CASCADE
+                        id          INT AUTO_INCREMENT PRIMARY KEY,
+                        category_id SMALLINT     NOT NULL,
+                        vendor_code VARCHAR(50)  NOT NULL UNIQUE,
+                        title       VARCHAR(150) NOT NULL,
+                        price       DECIMAL(12,2) NOT NULL CHECK (price >= 0),
+                        in_stock    INT          NOT NULL DEFAULT 0 CHECK (in_stock >= 0),
+                        created_at  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+                        updated_at  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                        INDEX idx_cat_price (category_id, price),
+                        CONSTRAINT fk_prod_cat
+                        FOREIGN KEY (category_id) REFERENCES categories(id)
+                        ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 
 -- 5. Статусы заказа
