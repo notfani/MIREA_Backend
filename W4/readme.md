@@ -1,67 +1,45 @@
-    CREATE (создать клиента)
+## REST API для клиентов
 
-```mutation {
-createClient(name: "Alice", email: "alice@demo.ru") {
-id
-name
-email
-}
-}
-Ожидаемый ответ (id может быть 1, 2 …):
-{"data":{"createClient":{"id":1,"name":"Alice","email":"alice@demo.ru"}}}
-```
+Сервис предоставляет простые endpoints для демонстрации CRUD-операций над клиентской базой.
+Дата хранится в файле `storage/clients.json` (без БД), поэтому изменения сохраняются между запросами.
 
-    READ-ALL (получить список)
+### Базовый URL
 
 ```
-query {
-clients {
-id
-name
-email
-}
-}
+http://localhost:8080/api/clients
 ```
 
-    READ-ONE (получить одного по id)
+### Методы
 
-```
-query(id: Int!) {
-client(id: id) {
-id
-name
-email
-}
-}
-В нижней колонке «Variables»:
-{"id": 1}
-```
+| Метод | Путь | Описание | Пример тела |
+|-------|------|----------|-------------|
+| GET | `/api/clients` | Список всех клиентов | — |
+| GET | `/api/clients/{id}` | Найти клиента по ID | — |
+| POST | `/api/clients` | Создать клиента | `{ "name": "Alice", "email": "alice@demo.ru" }` |
+| PATCH | `/api/clients/{id}` | Обновить имя/email | `{ "name": "Bob" }`
+| DELETE | `/api/clients/{id}` | Удалить клиента | — |
 
-    UPDATE (изменить имя)
+### Примеры запросов (curl)
 
-```
-mutation {
-updateClient(id: 1, name: "Bob") {
-id
-name
-email
-}
-}
-```
+```bash
+# Создать клиента
+curl -X POST http://localhost:8080/api/clients \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Alice","email":"alice@demo.ru"}'
 
-    DELETE (удалить)
+# Получить всех клиентов
+curl http://localhost:8080/api/clients
 
-```
-mutation {
-deleteClient(id: 1)
-}
-Ответ: {"data":{"deleteClient":true}}
+# Обновить email
+curl -X PATCH http://localhost:8080/api/clients/1 \
+  -H "Content-Type: application/json" \
+  -d '{"email":"alice+new@demo.ru"}'
+
+# Удалить клиента
+curl -X DELETE http://localhost:8080/api/clients/1
 ```
 
-    Проверить, что удалили
+### Playground
 
-Повторите запрос №2 – список должен быть пустым:
-
-```
-{"data":{"clients":[]}}
-```
+Страница `public/playground.html` содержит удобную форму для выполнения запросов прямо из браузера.
+Она автоматически выводит список клиентов и показывает последний ответ сервера.

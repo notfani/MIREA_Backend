@@ -1,83 +1,285 @@
 <!doctype html>
-<html>
+<html lang="ru">
 <head>
     <meta charset="utf-8"/>
-    <title>GraphQL Playground</title>
-    <link rel="stylesheet"
-          href="https://unpkg.com/graphql-voyager@1.x/dist/voyager.css"/>
+    <title>REST API Playground</title>
     <style>
+        :root {
+            color-scheme: light dark;
+            font-family: "Segoe UI", system-ui, sans-serif;
+            background: #f5f5f5;
+        }
+
         body {
             margin: 0;
-            font-family: system-ui, sans-serif;
+            padding: 32px;
+            background: inherit;
         }
 
-        #editor {
-            height: 40vh;
-            border: 1px solid #ccc;
+        h1 {
+            margin-top: 0;
         }
 
-        #vars {
-            height: 15vh;
-            border: 1px solid #ccc;
+        main {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 24px;
+            margin-top: 24px;
         }
 
-        #result {
-            height: 30vh;
-            border: 1px solid #ccc;
-            padding: 8px;
-            white-space: pre-wrap;
+        section {
+            background: #fff;
+            border-radius: 14px;
+            box-shadow: 0 12px 30px -20px rgba(0, 0, 0, 0.4);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        label {
+            display: flex;
+            flex-direction: column;
+            font-size: 14px;
+            gap: 4px;
+        }
+
+        input, textarea {
+            font: inherit;
+            padding: 8px 10px;
+            border-radius: 8px;
+            border: 1px solid #cbd5e1;
         }
 
         button {
-            margin: 8px 0;
-            padding: 6px 18px;
+            align-self: flex-start;
+            font: inherit;
+            border: none;
+            background: #2563eb;
+            color: #fff;
+            border-radius: 8px;
+            padding: 8px 16px;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        button:hover {
+            background: #1d4ed8;
+        }
+
+        pre {
+            background: #0f172a;
+            color: #f8fafc;
+            padding: 16px;
+            border-radius: 10px;
+            overflow: auto;
+            max-height: 220px;
+            margin: 0;
+        }
+
+        .note {
+            max-width: 720px;
+            line-height: 1.5;
+            font-size: 15px;
+            color: #475569;
+        }
+
+        .log {
+            grid-column: 1 / -1;
+        }
+
+        @media (max-width: 680px) {
+            body {
+                padding: 16px;
+            }
+
+            section {
+                padding: 16px;
+            }
         }
     </style>
 </head>
 <body>
-<h2>Запрос / мутация</h2>
-<div id="editor"></div>
-<h3>Переменные (JSON)</h3>
-<div id="vars"></div>
-<button onclick="send()">Отправить</button>
-<h3>Ответ сервера</h3>
-<div id="result"></div>
+<h1>REST API Playground</h1>
+<p class="note">
+    Здесь можно попробовать REST-методы для работы с клиентами. Все запросы идут на <code>/api/clients</code>.
+    После создания, изменения или удаления данные обновятся и появятся в списке.
+</p>
 
-<!-- CodeMirror для подсветки -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/javascript/javascript.min.js"></script>
-<link rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css"/>
+<main>
+    <section>
+        <h2>Список клиентов</h2>
+        <button id="loadAllBtn" type="button">Загрузить список</button>
+        <pre id="clientsList">[ ]</pre>
+    </section>
+
+    <section>
+        <h2>Найти по ID</h2>
+        <form id="getForm">
+            <label>
+                ID клиента
+                <input type="number" id="getId" min="1" required>
+            </label>
+            <button type="submit">Получить</button>
+        </form>
+        <pre id="singleClient">—</pre>
+    </section>
+
+    <section>
+        <h2>Создать клиента</h2>
+        <form id="createForm">
+            <label>
+                Имя
+                <input type="text" id="createName" required>
+            </label>
+            <label>
+                Email
+                <input type="email" id="createEmail" required>
+            </label>
+            <button type="submit">Создать</button>
+        </form>
+    </section>
+
+    <section>
+        <h2>Обновить клиента</h2>
+        <form id="updateForm">
+            <label>
+                ID клиента
+                <input type="number" id="updateId" min="1" required>
+            </label>
+            <label>
+                Новое имя (необязательно)
+                <input type="text" id="updateName" placeholder="Не менять">
+            </label>
+            <label>
+                Новый email (необязательно)
+                <input type="email" id="updateEmail" placeholder="Не менять">
+            </label>
+            <button type="submit">Сохранить изменения</button>
+        </form>
+    </section>
+
+    <section>
+        <h2>Удалить клиента</h2>
+        <form id="deleteForm">
+            <label>
+                ID клиента
+                <input type="number" id="deleteId" min="1" required>
+            </label>
+            <button type="submit">Удалить</button>
+        </form>
+    </section>
+
+    <section class="log">
+        <h2>Последний ответ сервера</h2>
+        <pre id="response">—</pre>
+    </section>
+</main>
 
 <script>
-    const queryEditor = CodeMirror(document.getElementById('editor'), {
-        lineNumbers: true, mode: 'javascript',
-        value: `mutation {
-  createClient(name: "Eve", email: "eve@demo.ru") {
-    id name email
-  }
-}`
-    });
-    const varsEditor = CodeMirror(document.getElementById('vars'), {
-        lineNumbers: true, mode: {name: 'javascript', json: true},
-        value: '{}'
+    const API_ROOT = '/api/clients';
+
+    const clientsList = document.getElementById('clientsList');
+    const singleClient = document.getElementById('singleClient');
+    const responseBox = document.getElementById('response');
+
+    document.getElementById('loadAllBtn').addEventListener('click', loadClients);
+
+    document.getElementById('getForm').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const id = Number(document.getElementById('getId').value);
+        const {data, error} = await request('GET', `/${id}`);
+        singleClient.textContent = formatPayload(error ?? data);
     });
 
-    async function send() {
-        const query = queryEditor.getValue();
-        const variables = varsEditor.getValue();
+    document.getElementById('createForm').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const payload = {
+            name: document.getElementById('createName').value.trim(),
+            email: document.getElementById('createEmail').value.trim()
+        };
+        await request('POST', '', payload);
+        event.target.reset();
+        await loadClients();
+    });
+
+    document.getElementById('updateForm').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const payload = {};
+        const id = Number(document.getElementById('updateId').value);
+        const name = document.getElementById('updateName').value.trim();
+        const email = document.getElementById('updateEmail').value.trim();
+        if (name) payload.name = name;
+        if (email) payload.email = email;
+        if (Object.keys(payload).length === 0) {
+            showResponse({error: 'Нужно указать хотя бы одно поле для обновления'});
+            return;
+        }
+        await request('PATCH', `/${id}`, payload);
+        event.target.reset();
+        await loadClients();
+    });
+
+    document.getElementById('deleteForm').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const id = Number(document.getElementById('deleteId').value);
+        const {error} = await request('DELETE', `/${id}`);
+        if (!error) {
+            showResponse({status: 'Клиент удалён'});
+        }
+        event.target.reset();
+        await loadClients();
+    });
+
+    async function loadClients() {
+        const {data, error} = await request('GET');
+        clientsList.textContent = formatPayload(error ?? data);
+        return data;
+    }
+
+    async function request(method, path = '', body) {
         try {
-            const res = await fetch('/', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({query, variables: JSON.parse(variables)})
+            const response = await fetch(`${API_ROOT}${path}`, {
+                method,
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: body && method !== 'GET' && method !== 'DELETE' ? JSON.stringify(body) : undefined
             });
-            const json = await res.json();
-            document.getElementById('result').textContent = JSON.stringify(json, null, 2);
-        } catch (e) {
-            document.getElementById('result').textContent = e.message;
+
+            if (response.status === 204) {
+                showResponse({status: 'No Content'});
+                return {data: null, error: null};
+            }
+
+            const payload = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                const error = payload.error ?? payload;
+                showResponse({error, status: response.status});
+                return {data: null, error};
+            }
+
+            showResponse(payload);
+            return {data: payload, error: null};
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            showResponse({error: message});
+            return {data: null, error: message};
         }
     }
+
+    function showResponse(payload) {
+        responseBox.textContent = formatPayload(payload);
+    }
+
+    function formatPayload(payload) {
+        return typeof payload === 'string'
+            ? payload
+            : JSON.stringify(payload, null, 2);
+    }
+
+    loadClients();
 </script>
 </body>
 </html>
