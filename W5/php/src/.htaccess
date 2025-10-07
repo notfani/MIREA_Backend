@@ -9,5 +9,5 @@ RewriteCond %{REQUEST_FILENAME} -f [OR]
 RewriteCond %{REQUEST_FILENAME} -d
 RewriteRule ^ - [L]
 
-# Остальные пути — SPA (клиент)
-RewriteRule ^ public/index.html [L,QSA]
+# Остальные пути — публичная страница логина/регистрации
+RewriteRule ^ public/index.php [L,QSA]

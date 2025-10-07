@@ -7,8 +7,10 @@ services:
       POSTGRES_DB: contentgate
       POSTGRES_USER: gate
       POSTGRES_PASSWORD: gatepass
+    ports:
+      - "5432:5432"
     volumes:
-      - ./php/src/db/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
       - pgdata:/var/lib/postgresql/data
     networks:
       - inner

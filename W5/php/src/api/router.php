@@ -23,6 +23,10 @@
 			if ($method === 'POST') echo Auth::login();
 			else http_response_code(405);
 			break;
+		case '/api/logout':
+			if ($method === 'POST') echo Auth::logout();
+			else http_response_code(405);
+			break;
 		case '/api/content':
 			if ($method === 'GET') echo Content::personal();
 			else http_response_code(405);
@@ -33,6 +37,11 @@
 			break;
 		case (preg_match('#^/api/pdf/(\d+)$#', $path, $m) ? true : false):
 			if ($method === 'GET') PdfService::download((int)$m[1]);
+			elseif ($method === 'DELETE') echo PdfService::delete((int)$m[1]);
+			else http_response_code(405);
+			break;
+		case (preg_match('#^/api/delete-pdf/(\d+)$#', $path, $m) ? true : false):
+			if ($method === 'DELETE') echo PdfService::delete((int)$m[1]);
 			else http_response_code(405);
 			break;
 		default:

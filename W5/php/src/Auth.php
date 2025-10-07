@@ -29,4 +29,13 @@
 			http_response_code(401);
 			return json_encode(['ok' => false]);
 		}
+		
+		static function logout()
+		{
+			// Очистка куков
+			foreach (['uid', 'theme', 'lang'] as $c) {
+				setcookie($c, '', time() - 3600, '/');
+			}
+			return json_encode(['ok' => true]);
+		}
 	}
