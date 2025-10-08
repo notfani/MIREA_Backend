@@ -1,0 +1,6 @@
+{
+    "require": {
+        "fakerphp/faker": "^1.23",
+        "phplot/phplot": "^8.0"
+    }
+}
