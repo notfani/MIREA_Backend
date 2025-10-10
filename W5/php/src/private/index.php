@@ -1,7 +1,6 @@
 <?php
     // Приватная страница (доступна только после входа)
     require_once __DIR__ . '/../DB.php';
-    require_once __DIR__ . '/../RedisClient.php';
     require_once __DIR__ . '/../Content.php';
 
     $uid = (int)($_COOKIE['uid'] ?? 0);
@@ -24,21 +23,16 @@
     ];
     $cssHref = $cssMap[$theme] ?? $cssMap['light'];
 
-    // Достаём логин пользователя
+    // Достаём логин пользователя и список PDF — используем единое подключение к БД
     $login = 'user';
+    $files = [];
     try {
         $db = DB::get();
         $stU = $db->prepare('SELECT login FROM users WHERE id=?');
         $stU->execute([$uid]);
         $row = $stU->fetch();
         if ($row && isset($row['login'])) $login = $row['login'];
-    } catch (Throwable $e) {
-    }
 
-    // Готовим список PDF пользователя
-    $files = [];
-    try {
-        $db = DB::get();
         $st = $db->prepare('SELECT id, filename, original_name, uploaded_at FROM pdfs WHERE user_id = ? ORDER BY id DESC');
         $st->execute([$uid]);
         $files = $st->fetchAll();
@@ -281,36 +275,35 @@
         }
     });
 
-    // Обработка удаления файлов
-    document.querySelectorAll('.delete-btn').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
-            const id = e.target.dataset.id;
-            if (!id) return;
+    // Делегированная обработка удаления файлов (один обработчик для списка)
+    document.querySelector('ul.files')?.addEventListener('click', async (e) => {
+        const btn = e.target.closest && e.target.closest('.delete-btn');
+        if (!btn) return;
+        const id = btn.dataset.id;
+        if (!id) return;
 
-            if (!confirm('Вы уверены, что хотите удалить этот файл?')) return;
+        if (!confirm('Вы уверены, что хотите удалить этот файл?')) return;
 
-            try {
-                const response = await fetch('/api/delete-pdf/' + id, {
-                    method: 'DELETE',
-                    credentials: 'same-origin'
-                });
+        try {
+            const response = await fetch('/api/delete-pdf/' + id, {
+                method: 'DELETE',
+                credentials: 'same-origin'
+            });
 
-                const result = await response.json().catch(() => ({}));
+            const result = await response.json().catch(() => ({}));
 
-                if (response.ok && result.ok) {
-                    // Успешно удалено, перезагружаем список файлов
-                    location.reload();
-                } else {
-                    const errorMsg = result.message || 'Ошибка при удалении файла';
-                    alert('❌ ' + errorMsg);
-                }
-            } catch (error) {
-                alert('❌ Ошибка соединения с сервером');
+            if (response.ok && result.ok) {
+                location.reload();
+            } else {
+                const errorMsg = result.message || 'Ошибка при удалении файла';
+                alert('❌ ' + errorMsg);
             }
-        });
+        } catch (error) {
+            alert('❌ Ошибка соединения с сервером');
+        }
     });
 
-    // Theme toggle
+    // Смена темы
     (function () {
         const themes = ['light', 'dark', 'colorblind'];
         const btnTheme = document.getElementById('themeToggle');
