@@ -169,8 +169,11 @@
     <main>
         <div class="topbar">
             <div class="userbox">👤 <?= htmlspecialchars($login, ENT_QUOTES) ?> (id <?= (int)$uid ?>)</div>
-            <button class="logout" id="btnLogout"
-                    type="button"><?= htmlspecialchars($logoutText, ENT_QUOTES) ?></button>
+            <div style="display:flex;gap:8px;align-items:center;">
+                <button id="themeToggle" type="button" style="padding:6px 10px;border-radius:8px;cursor:pointer;">Theme: <?= htmlspecialchars($theme, ENT_QUOTES) ?></button>
+                <button class="logout" id="btnLogout"
+                        type="button"><?= htmlspecialchars($logoutText, ENT_QUOTES) ?></button>
+            </div>
         </div>
         <h1><?= htmlspecialchars($greeting, ENT_QUOTES) ?>!</h1>
         <img src="<?= htmlspecialchars($banner, ENT_QUOTES) ?>" alt="banner">
@@ -306,6 +309,50 @@
             }
         });
     });
+
+    // Theme toggle
+    (function () {
+        const themes = ['light', 'dark', 'colorblind'];
+        const btnTheme = document.getElementById('themeToggle');
+        const cssLink = document.querySelector('link[rel="stylesheet"]');
+        const bannerImg = document.querySelector('header img');
+
+        function setCookie(name, value, days = 365) {
+            const expires = new Date(Date.now() + days * 864e5).toUTCString();
+            document.cookie = name + '=' + encodeURIComponent(value) + '; expires=' + expires + '; path=/';
+        }
+
+        function applyTheme(theme) {
+            const cssMap = {
+                light: '/css/light.css',
+                dark: '/css/dark.css',
+                colorblind: '/css/colorblind.css'
+            };
+            const bannerMap = {
+                light: '/static/light.svg',
+                dark: '/static/dark.svg',
+                colorblind: '/static/cb.svg'
+            };
+            if (cssLink) cssLink.href = cssMap[theme] || cssMap.light;
+            if (bannerImg) bannerImg.src = bannerMap[theme] || bannerMap.light;
+            if (btnTheme) btnTheme.textContent = 'Theme: ' + theme;
+        }
+
+        if (btnTheme) {
+            btnTheme.addEventListener('click', async () => {
+                const cur = (btnTheme.textContent || '').replace('Theme: ', '') || 'light';
+                const idx = themes.indexOf(cur);
+                const next = themes[(idx + 1) % themes.length];
+                applyTheme(next);
+                setCookie('theme', next, 365);
+
+                try {
+                    await fetch('/api/set-theme', {method: 'POST', credentials: 'same-origin', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({theme: next})});
+                } catch (e) {
+                }
+            });
+        }
+    })();
 </script>
 </body>
 </html>
