@@ -30,9 +30,9 @@
         ]);
     }
 
-    // Получаем настройки из cookies
-    $theme = $_COOKIE['theme'] ?? 'light';
-    $lang = $_COOKIE['lang'] ?? 'ru';
+    // Получаем настройки из cookies (или из БД, если cookie нет)
+    $theme = $_COOKIE['theme'] ?? ($user['theme'] ?? 'light');
+    $lang = $_COOKIE['lang'] ?? ($user['lang'] ?? 'ru');
 
     // Подготовка CSS файла
     $cssMap = [
@@ -75,6 +75,8 @@
                     'no_files' => 'Файлы отсутствуют',
                     'delete' => 'Удалить',
                     'uploaded' => 'Загружен',
+                    'theme' => 'Тема',
+                    'theme_changed' => 'Тема обновлена',
             ],
             'en' => [
                     'title' => 'Dashboard',
@@ -84,6 +86,8 @@
                     'no_files' => 'No files',
                     'delete' => 'Delete',
                     'uploaded' => 'Uploaded',
+                    'theme' => 'Theme',
+                    'theme_changed' => 'Theme updated',
             ],
     ];
 
@@ -175,6 +179,23 @@
             opacity: .85;
         }
 
+        .themebox {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+        }
+
+        .themebox select {
+            padding: 6px 8px;
+            border-radius: 6px;
+        }
+
+        #themeMsg {
+            font-size: 12px;
+            opacity: .8;
+        }
+
         button.logout {
             background: #dc2626;
             color: #fff;
@@ -235,11 +256,20 @@
     <main>
         <div class="topbar">
             <div class="userbox">👤 <?= htmlspecialchars($login, ENT_QUOTES) ?> (ID: <?= (int)$uid ?>)</div>
+            <div class="themebox">
+                <label for="themeSelect"><?= htmlspecialchars($t['theme'], ENT_QUOTES) ?>:</label>
+                <select id="themeSelect">
+                    <option value="light" <?= $theme === 'light' ? 'selected' : '' ?>>Light</option>
+                    <option value="dark" <?= $theme === 'dark' ? 'selected' : '' ?>>Dark</option>
+                    <option value="colorblind" <?= $theme === 'colorblind' ? 'selected' : '' ?>>Colorblind</option>
+                </select>
+                <span id="themeMsg"></span>
+            </div>
             <button class="logout" id="btnLogout"
                     type="button"><?= htmlspecialchars($t['logout'], ENT_QUOTES) ?></button>
         </div>
         <h1><?= htmlspecialchars($greeting, ENT_QUOTES) ?>!</h1>
-        <img src="<?= htmlspecialchars($banner, ENT_QUOTES) ?>" alt="banner">
+        <img id="bannerImg" src="<?= htmlspecialchars($banner, ENT_QUOTES) ?>" alt="banner">
     </main>
 </header>
 <main>
@@ -302,6 +332,58 @@
         uploadMessage.style.color = isSuccess ? '#166534' : '#dc2626';
         uploadMessage.style.border = `1px solid ${isSuccess ? '#bbf7d0' : '#fecaca'}`;
     }
+
+    // Смена темы
+    const themeMapCss = {
+        light: '/css/light.css',
+        dark: '/css/dark.css',
+        colorblind: '/css/colorblind.css'
+    };
+    const themeMapBanner = {
+        light: '/static/light.svg',
+        dark: '/static/dark.svg',
+        colorblind: '/static/cb.svg'
+    };
+    const themeSelect = document.getElementById('themeSelect');
+    const themeMsg = document.getElementById('themeMsg');
+    const bannerImg = document.getElementById('bannerImg');
+
+    function setThemeLocally(theme) {
+        const link = document.querySelector('link[rel="stylesheet"]');
+        if (link && themeMapCss[theme]) {
+            link.href = themeMapCss[theme];
+        }
+        if (bannerImg && themeMapBanner[theme]) {
+            bannerImg.src = themeMapBanner[theme];
+        }
+    }
+
+    themeSelect?.addEventListener('change', async (e) => {
+        const value = e.target.value;
+        themeSelect.disabled = true;
+        themeMsg.textContent = '...';
+        const fd = new FormData();
+        fd.append('theme', value);
+        try {
+            const resp = await fetch('/api/theme', {method: 'POST', body: fd, credentials: 'same-origin'});
+            const data = await resp.json().catch(() => ({}));
+            if (resp.ok && data.ok) {
+                setThemeLocally(value);
+                themeMsg.textContent = '<?= htmlspecialchars($t['theme_changed'], ENT_QUOTES) ?>';
+                themeMsg.style.color = '#166534';
+                setTimeout(() => themeMsg.textContent = '', 2000);
+            } else {
+                const msg = data.error || 'Error';
+                themeMsg.textContent = msg;
+                themeMsg.style.color = '#dc2626';
+            }
+        } catch (err) {
+            themeMsg.textContent = 'Network error';
+            themeMsg.style.color = '#dc2626';
+        } finally {
+            themeSelect.disabled = false;
+        }
+    });
 
     // Загрузка файла
     const uploadForm = document.getElementById('uploadForm');
