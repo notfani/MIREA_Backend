@@ -1,8 +1,5 @@
 <?php
 	
-	/**
-	 * Класс для работы с HTTP запросами
-	 */
 	class Request
 	{
 		private array $data;
@@ -16,57 +13,36 @@
 			$this->data = $this->parseInput();
 		}
 		
-		/**
-		 * Получить метод запроса
-		 */
 		public function getMethod(): string
 		{
 			return $this->method;
 		}
 		
-		/**
-		 * Получить путь запроса
-		 */
 		public function getPath(): string
 		{
 			return $this->path;
 		}
 		
-		/**
-		 * Получить данные запроса
-		 */
 		public function getData(): array
 		{
 			return $this->data;
 		}
 		
-		/**
-		 * Получить значение из данных запроса
-		 */
 		public function get(string $key, $default = null)
 		{
 			return $this->data[$key] ?? $default;
 		}
 		
-		/**
-		 * Получить cookie
-		 */
 		public function getCookie(string $name, $default = null)
 		{
 			return $_COOKIE[$name] ?? $default;
 		}
 		
-		/**
-		 * Получить файл из $_FILES
-		 */
 		public function getFile(string $name): ?array
 		{
 			return $_FILES[$name] ?? null;
 		}
 		
-		/**
-		 * Парсинг входных данных
-		 */
 		private function parseInput(): array
 		{
 			if ($this->method === 'GET') {
@@ -88,9 +64,6 @@
 			return [];
 		}
 		
-		/**
-		 * Валидация данных
-		 */
 		public function validate(array $rules): array
 		{
 			$errors = [];

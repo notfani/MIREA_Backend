@@ -178,3 +178,40 @@
 [2025-10-13 16:22:08] [INFO] Database connection established
 [2025-10-13 16:22:08] [INFO] User logged out {"userId":"1"}
 [2025-10-13 16:22:08] [INFO] Request received {"path":"\/","method":"GET","ip":"172.18.0.5"}
+[2025-10-13 16:43:41] [INFO] Request received {"path":"\/","method":"GET","ip":"172.18.0.5"}
+[2025-10-13 16:43:42] [INFO] API request {"method":"POST","path":"\/api\/login","ip":"172.18.0.5"}
+[2025-10-13 16:43:43] [INFO] Database connection established
+[2025-10-13 16:43:43] [INFO] User logged in {"userId":1,"login":"user"}
+[2025-10-13 16:43:44] [INFO] Database connection established
+[2025-10-13 16:43:44] [ERROR] PHP Error: Undefined array key "timeout" {"file":"\/var\/www\/html\/RedisClient.php","line":37,"severity":2}
+[2025-10-13 16:43:44] [ERROR] PHP Error: Redis::connect(): Passing null to parameter #3 ($timeout) of type float is deprecated {"file":"\/var\/www\/html\/RedisClient.php","line":34,"severity":8192}
+[2025-10-13 16:43:44] [INFO] Redis connection established
+[2025-10-13 16:43:44] [DEBUG] Content cached {"userId":1,"theme":"dark","lang":"ru"}
+[2025-10-13 16:43:46] [INFO] Database connection established
+[2025-10-13 16:43:46] [ERROR] PHP Error: Undefined array key "timeout" {"file":"\/var\/www\/html\/RedisClient.php","line":37,"severity":2}
+[2025-10-13 16:43:46] [ERROR] PHP Error: Redis::connect(): Passing null to parameter #3 ($timeout) of type float is deprecated {"file":"\/var\/www\/html\/RedisClient.php","line":34,"severity":8192}
+[2025-10-13 16:43:46] [INFO] Redis connection established
+[2025-10-13 16:43:46] [DEBUG] Content served from cache {"userId":1,"theme":"dark","lang":"ru"}
+[2025-10-13 16:47:54] [INFO] Request received {"path":"\/","method":"GET","ip":"172.18.0.5"}
+[2025-10-13 16:47:54] [INFO] Database connection established
+[2025-10-13 16:47:54] [ERROR] PHP Error: Undefined array key "timeout" {"file":"\/var\/www\/html\/RedisClient.php","line":37,"severity":2}
+[2025-10-13 16:47:54] [ERROR] PHP Error: Redis::connect(): Passing null to parameter #3 ($timeout) of type float is deprecated {"file":"\/var\/www\/html\/RedisClient.php","line":34,"severity":8192}
+[2025-10-13 16:47:54] [INFO] Redis connection established
+[2025-10-13 16:47:54] [DEBUG] Content cached {"userId":1,"theme":"dark","lang":"ru"}
+[2025-10-13 16:47:55] [INFO] Database connection established
+[2025-10-13 16:47:55] [ERROR] PHP Error: Undefined array key "timeout" {"file":"\/var\/www\/html\/RedisClient.php","line":37,"severity":2}
+[2025-10-13 16:47:55] [ERROR] PHP Error: Redis::connect(): Passing null to parameter #3 ($timeout) of type float is deprecated {"file":"\/var\/www\/html\/RedisClient.php","line":34,"severity":8192}
+[2025-10-13 16:47:55] [INFO] Redis connection established
+[2025-10-13 16:47:55] [DEBUG] Content served from cache {"userId":1,"theme":"dark","lang":"ru"}
+[2025-10-13 16:47:57] [INFO] API request {"method":"POST","path":"\/api\/logout","ip":"172.18.0.5"}
+[2025-10-13 16:47:57] [INFO] Database connection established
+[2025-10-13 16:47:57] [INFO] User logged out {"userId":"1"}
+[2025-10-13 16:47:57] [INFO] Request received {"path":"\/","method":"GET","ip":"172.18.0.5"}
+[2025-10-13 16:48:29] [INFO] API request {"method":"POST","path":"\/api\/login","ip":"172.18.0.5"}
+[2025-10-13 16:48:29] [INFO] Database connection established
+[2025-10-13 16:48:29] [INFO] User logged in {"userId":1,"login":"user"}
+[2025-10-13 16:48:30] [INFO] Database connection established
+[2025-10-13 16:48:30] [ERROR] PHP Error: Undefined array key "timeout" {"file":"\/var\/www\/html\/RedisClient.php","line":37,"severity":2}
+[2025-10-13 16:48:30] [ERROR] PHP Error: Redis::connect(): Passing null to parameter #3 ($timeout) of type float is deprecated {"file":"\/var\/www\/html\/RedisClient.php","line":34,"severity":8192}
+[2025-10-13 16:48:30] [INFO] Redis connection established
+[2025-10-13 16:48:30] [DEBUG] Content served from cache {"userId":1,"theme":"dark","lang":"ru"}

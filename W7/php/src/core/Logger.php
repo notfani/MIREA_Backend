@@ -1,8 +1,5 @@
 <?php
 	
-	/**
-	 * Простой класс для логирования
-	 */
 	class Logger
 	{
 		private static ?self $instance = null;
@@ -13,7 +10,9 @@
 			$this->logFile = __DIR__ . '/../logs/app.log';
 			$logDir = dirname($this->logFile);
 			if (!is_dir($logDir)) {
-				@mkdir($logDir, 0775, true);
+				if (!mkdir($logDir, 0775, true) && !is_dir($logDir)) {
+					throw new \RuntimeException(sprintf('Directory "%s" was not created', $logDir));
+				}
 			}
 		}
 		
@@ -25,9 +24,6 @@
 			return self::$instance;
 		}
 		
-		/**
-		 * Записать сообщение в лог
-		 */
 		public function log(string $level, string $message, array $context = []): void
 		{
 			$timestamp = date('Y-m-d H:i:s');

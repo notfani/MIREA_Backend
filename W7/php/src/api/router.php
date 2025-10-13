@@ -1,12 +1,7 @@
 <?php
-	/**
-	 * API Router - обрабатывает все API запросы
-	 */
-
-// Подключение зависимостей
+	
 	require_once __DIR__ . '/../_bootstrap.php';
-
-// Инициализация
+	
 	$request = new Request();
 	$method = $request->getMethod();
 	$path = $request->getPath();
@@ -14,14 +9,12 @@
 	header("Access-Control-Allow-Origin: *");
 	header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
 	header("Access-Control-Allow-Headers: Content-Type");
-
-// Обработка preflight запросов
+	
 	if ($method === 'OPTIONS') {
 		http_response_code(200);
 		exit;
 	}
-
-// Логирование запроса
+	
 	Logger::getInstance()->info('API request', [
 		'method' => $method,
 		'path' => $path,
@@ -29,9 +22,7 @@
 	]);
 	
 	try {
-		// Маршрутизация
 		switch (true) {
-			// Аутентификация
 			case $path === '/api/register' && $method === 'POST':
 				$authService = new Auth();
 				echo $authService->register($request);
@@ -47,7 +38,6 @@
 				echo $authService->logout($request);
 				break;
 			
-			// Смена темы пользователя
 			case $path === '/api/theme' && $method === 'POST':
 				$uid = Auth::checkAuth($request);
 				if (!$uid) {
@@ -67,10 +57,10 @@
 					echo Response::error('Не удалось сохранить тему', 500);
 					break;
 				}
-				// Обновляем cookie
+				
 				$config = require __DIR__ . '/../config/config.php';
 				setcookie('theme', $theme, $config['session']['cookie_lifetime'], $config['session']['cookie_path']);
-				// Чистим кеш персонального контента
+				
 				try {
 					(new Content())->clearUserCache($uid);
 				} catch (Throwable $e) { /* ignore */
@@ -79,13 +69,11 @@
 				echo Response::success(['theme' => $theme], 'Тема обновлена');
 				break;
 			
-			// Контент
 			case $path === '/api/content' && $method === 'GET':
 				$contentService = new Content();
 				echo $contentService->personal($request);
 				break;
 			
-			// Работа с PDF
 			case $path === '/api/upload' && $method === 'POST':
 				$pdfService = new PdfService();
 				echo $pdfService->upload($request);
