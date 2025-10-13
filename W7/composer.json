@@ -1,0 +1,8 @@
+{
+  "name": "mirea/backend",
+  "require": {
+    "ext-pdo": "*",
+    "ext-redis": "*"
+  }
+}
+

@@ -1,0 +1,41 @@
+# This file ensures the uploads directory is tracked by Git
+# Dependencies
+/vendor/
+/node_modules/
+
+# Composer
+composer.phar
+composer.lock
+
+# Logs
+*.log
+/php/src/logs/*.log
+!/php/src/logs/.gitkeep
+
+# Uploaded files
+/php/src/uploads/*.pdf
+!/php/src/uploads/.gitkeep
+
+# Environment files
+.env
+.env.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+.docker/
+
+# Temporary files
+*.tmp
+*.temp
+*.cache
+
