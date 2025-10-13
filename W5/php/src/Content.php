@@ -1,6 +1,7 @@
 <?php
-	
-	class Content
+require_once __DIR__ . '/RedisClient.php';
+
+class Content
 	{
 		static function personal()
 		{

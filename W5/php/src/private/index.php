@@ -1,7 +1,6 @@
 <?php
     // Приватная страница (доступна только после входа)
     require_once __DIR__ . '/../DB.php';
-    require_once __DIR__ . '/../RedisClient.php';
     require_once __DIR__ . '/../Content.php';
 
     $uid = (int)($_COOKIE['uid'] ?? 0);
@@ -24,21 +23,16 @@
     ];
     $cssHref = $cssMap[$theme] ?? $cssMap['light'];
 
-    // Достаём логин пользователя
+    // Достаём логин пользователя и список PDF — используем единое подключение к БД
     $login = 'user';
+    $files = [];
     try {
         $db = DB::get();
         $stU = $db->prepare('SELECT login FROM users WHERE id=?');
         $stU->execute([$uid]);
         $row = $stU->fetch();
         if ($row && isset($row['login'])) $login = $row['login'];
-    } catch (Throwable $e) {
-    }
 
-    // Готовим список PDF пользователя
-    $files = [];
-    try {
-        $db = DB::get();
         $st = $db->prepare('SELECT id, filename, original_name, uploaded_at FROM pdfs WHERE user_id = ? ORDER BY id DESC');
         $st->execute([$uid]);
         $files = $st->fetchAll();
@@ -169,8 +163,11 @@
     <main>
         <div class="topbar">
             <div class="userbox">👤 <?= htmlspecialchars($login, ENT_QUOTES) ?> (id <?= (int)$uid ?>)</div>
-            <button class="logout" id="btnLogout"
-                    type="button"><?= htmlspecialchars($logoutText, ENT_QUOTES) ?></button>
+            <div style="display:flex;gap:8px;align-items:center;">
+                <button id="themeToggle" type="button" style="padding:6px 10px;border-radius:8px;cursor:pointer;">Theme: <?= htmlspecialchars($theme, ENT_QUOTES) ?></button>
+                <button class="logout" id="btnLogout"
+                        type="button"><?= htmlspecialchars($logoutText, ENT_QUOTES) ?></button>
+            </div>
         </div>
         <h1><?= htmlspecialchars($greeting, ENT_QUOTES) ?>!</h1>
         <img src="<?= htmlspecialchars($banner, ENT_QUOTES) ?>" alt="banner">
@@ -278,34 +275,77 @@
         }
     });
 
-    // Обработка удаления файлов
-    document.querySelectorAll('.delete-btn').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
-            const id = e.target.dataset.id;
-            if (!id) return;
+    // Делегированная обработка удаления файлов (один обработчик для списка)
+    document.querySelector('ul.files')?.addEventListener('click', async (e) => {
+        const btn = e.target.closest && e.target.closest('.delete-btn');
+        if (!btn) return;
+        const id = btn.dataset.id;
+        if (!id) return;
 
-            if (!confirm('Вы уверены, что хотите удалить этот файл?')) return;
+        if (!confirm('Вы уверены, что хотите удалить этот файл?')) return;
 
-            try {
-                const response = await fetch('/api/delete-pdf/' + id, {
-                    method: 'DELETE',
-                    credentials: 'same-origin'
-                });
+        try {
+            const response = await fetch('/api/delete-pdf/' + id, {
+                method: 'DELETE',
+                credentials: 'same-origin'
+            });
 
-                const result = await response.json().catch(() => ({}));
+            const result = await response.json().catch(() => ({}));
 
-                if (response.ok && result.ok) {
-                    // Успешно удалено, перезагружаем список файлов
-                    location.reload();
-                } else {
-                    const errorMsg = result.message || 'Ошибка при удалении файла';
-                    alert('❌ ' + errorMsg);
-                }
-            } catch (error) {
-                alert('❌ Ошибка соединения с сервером');
+            if (response.ok && result.ok) {
+                location.reload();
+            } else {
+                const errorMsg = result.message || 'Ошибка при удалении файла';
+                alert('❌ ' + errorMsg);
             }
-        });
+        } catch (error) {
+            alert('❌ Ошибка соединения с сервером');
+        }
     });
+
+    // Смена темы
+    (function () {
+        const themes = ['light', 'dark', 'colorblind'];
+        const btnTheme = document.getElementById('themeToggle');
+        const cssLink = document.querySelector('link[rel="stylesheet"]');
+        const bannerImg = document.querySelector('header img');
+
+        function setCookie(name, value, days = 365) {
+            const expires = new Date(Date.now() + days * 864e5).toUTCString();
+            document.cookie = name + '=' + encodeURIComponent(value) + '; expires=' + expires + '; path=/';
+        }
+
+        function applyTheme(theme) {
+            const cssMap = {
+                light: '/css/light.css',
+                dark: '/css/dark.css',
+                colorblind: '/css/colorblind.css'
+            };
+            const bannerMap = {
+                light: '/static/light.svg',
+                dark: '/static/dark.svg',
+                colorblind: '/static/cb.svg'
+            };
+            if (cssLink) cssLink.href = cssMap[theme] || cssMap.light;
+            if (bannerImg) bannerImg.src = bannerMap[theme] || bannerMap.light;
+            if (btnTheme) btnTheme.textContent = 'Theme: ' + theme;
+        }
+
+        if (btnTheme) {
+            btnTheme.addEventListener('click', async () => {
+                const cur = (btnTheme.textContent || '').replace('Theme: ', '') || 'light';
+                const idx = themes.indexOf(cur);
+                const next = themes[(idx + 1) % themes.length];
+                applyTheme(next);
+                setCookie('theme', next, 365);
+
+                try {
+                    await fetch('/api/set-theme', {method: 'POST', credentials: 'same-origin', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({theme: next})});
+                } catch (e) {
+                }
+            });
+        }
+    })();
 </script>
 </body>
 </html>

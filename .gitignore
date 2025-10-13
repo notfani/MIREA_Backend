@@ -1,4 +1,5 @@
 .idea
-.env
+.env\
+client.json
 
 /W5/php/uploads
