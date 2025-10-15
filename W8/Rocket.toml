@@ -1,0 +1,7 @@
+[default]
+address = "0.0.0.0"   # слушаем все интерфейсы внутри контейнера
+port    = 8000
+
+[default.databases.postgres]
+url = "postgres://postgres:postgres@db:5432/postgres"
+# db – это имя сервиса из docker-compose.yml
