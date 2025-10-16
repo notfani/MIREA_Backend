@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>Вход / Регистрация</title>
+    <style>
+        :root {
+            color-scheme: light dark;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+            margin: 0;
+            display: flex;
+            min-height: 100dvh;
+            background: #f5f7fa;
+        }
+
+        .wrap {
+            margin: auto;
+            width: 100%;
+            max-width: 400px;
+            padding: 32px 24px;
+        }
+
+        h1 {
+            margin: 0 0 24px;
+            font-size: 28px;
+            text-align: center;
+        }
+
+        form {
+            background: #fff;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, .05), 0 0 0 1px #e5e7eb;
+        }
+
+        label {
+            display: block;
+            font-size: 14px;
+            margin: 0 0 6px;
+            color: #555;
+            font-weight: 500;
+        }
+
+        input {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 12px 14px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            font: inherit;
+            font-size: 16px;
+        }
+
+        input:focus {
+            outline: 2px solid #2563eb;
+            outline-offset: 1px;
+        }
+
+        .input-group {
+            margin-bottom: 16px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        button {
+            cursor: pointer;
+            flex: 1;
+            padding: 12px 16px;
+            border: 0;
+            border-radius: 8px;
+            font: 600 14px system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+            letter-spacing: .3px;
+            transition: background-color 0.2s;
+        }
+
+        .btn-login {
+            background: #2563eb;
+            color: #fff;
+        }
+
+        .btn-login:hover {
+            background: #1d4ed8;
+        }
+
+        .btn-login:active {
+            background: #1e40af;
+        }
+
+        .btn-register {
+            background: #059669;
+            color: #fff;
+        }
+
+        .btn-register:hover {
+            background: #047857;
+        }
+
+        .btn-register:active {
+            background: #065f46;
+        }
+
+        .msg {
+            margin-top: 16px;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: ui-monospace, Consolas, monospace;
+            white-space: pre-line;
+        }
+
+        .msg.success {
+            background: #dcfce7;
+            color: #166534;
+            border: 1px solid #bbf7d0;
+        }
+
+        .msg.error {
+            background: #fef2f2;
+            color: #dc2626;
+            border: 1px solid #fecaca;
+        }
+
+        .msg.info {
+            background: #eff6ff;
+            color: #1d4ed8;
+            border: 1px solid #bfdbfe;
+        }
+
+        .note {
+            margin-top: 20px;
+            font-size: 12px;
+            text-align: center;
+            color: #666;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            body {
+                background: #0f172a;
+            }
+
+            form {
+                background: #1e293b;
+                box-shadow: 0 0 0 1px #334155;
+            }
+
+            h1 {
+                color: #f1f5f9;
+            }
+
+            label {
+                color: #e2e8f0;
+            }
+
+            .note {
+                color: #94a3b8;
+            }
+
+            input {
+                background: #0f172a;
+                border-color: #334155;
+                color: #f1f5f9;
+            }
+
+            input:focus {
+                outline-color: #3b82f6;
+            }
+
+            .msg.success {
+                background: #064e3b;
+                color: #6ee7b7;
+                border-color: #047857;
+            }
+
+            .msg.error {
+                background: #7f1d1d;
+                color: #fca5a5;
+                border-color: #dc2626;
+            }
+
+            .msg.info {
+                background: #1e3a8a;
+                color: #93c5fd;
+                border-color: #3b82f6;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <h1>Добро пожаловать</h1>
+    <form id="authForm" autocomplete="off" novalidate>
+        <div class="input-group">
+            <label for="login">Логин</label>
+            <input id="login" name="login" required minlength="3" maxlength="40" placeholder="Введите логин"/>
+        </div>
+        <div class="input-group">
+            <label for="pwd">Пароль</label>
+            <input id="pwd" name="pwd" type="password" required minlength="4" maxlength="80"
+                   placeholder="Введите пароль"/>
+        </div>
+        <div class="button-group">
+            <button type="button" class="btn-login" id="loginBtn">Войти</button>
+            <button type="button" class="btn-register" id="registerBtn">Создать аккаунт</button>
+        </div>
+        <div class="msg" id="msg" style="display: none;" aria-live="polite"></div>
+    </form>
+    <div class="note">После входа откроется личный кабинет (/private)</div>
+</div>
+<script>
+    const form      = document.getElementById('authForm');
+    const loginBtn  = document.getElementById('loginBtn');
+    const registerBtn=document.getElementById('registerBtn');
+    const msg       = document.getElementById('msg');
+    const loginInput= document.getElementById('login');
+    const pwdInput  = document.getElementById('pwd');
+
+    function showMessage(text, type = 'info') {
+        msg.textContent = text;
+        msg.className = `msg ${type}`;
+        msg.style.display = 'block';
+    }
+    function hideMessage() {
+        msg.style.display = 'none';
+    }
+    function getFormData() {
+        return {
+            login: loginInput.value.trim(),
+            pwd: pwdInput.value
+        };
+    }
+    function validateForm() {
+        const data = getFormData();
+        if (!data.login || data.login.length < 3) {
+            showMessage('Логин должен содержать минимум 3 символа', 'error');
+            return false;
+        }
+        if (!data.pwd || data.pwd.length < 4) {
+            showMessage('Пароль должен содержать минимум 4 символа', 'error');
+            return false;
+        }
+        return true;
+    }
+
+    loginBtn.addEventListener('click', async () => {
+        if (!validateForm()) return;
+        showMessage('Выполняется вход...', 'info');
+        const payload = getFormData();
+        try {
+            const response = await fetch('/api/login', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload),
+                credentials: 'same-origin'
+            });
+            const data = await response.json().catch(() => ({}));
+            if (response.ok && data.ok) {
+                showMessage('Успешный вход! Перенаправление...', 'success');
+                setTimeout(() => location.href = '/private', 1000);
+            } else {
+                showMessage('Неверный логин или пароль.\nЕсли у вас нет аккаунта, нажмите «Создать аккаунт»', 'error');
+            }
+        } catch (error) {
+            showMessage('Ошибка соединения с сервером', 'error');
+        }
+    });
+
+    registerBtn.addEventListener('click', async () => {
+        if (!validateForm()) return;
+        showMessage('Создание аккаунта...', 'info');
+        const payload = getFormData();
+        try {
+            const response = await fetch('/api/register', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+            const data = await response.json().catch(() => ({}));
+            if (response.ok && data.ok) {
+                showMessage('Аккаунт успешно создан!\nТеперь нажмите «Войти» для входа в систему', 'success');
+            } else {
+                showMessage('Ошибка при создании аккаунта.\nВозможно, пользователь с таким логином уже существует', 'error');
+            }
+        } catch (error) {
+            showMessage('Ошибка соединения с сервером', 'error');
+        }
+    });
+
+    [loginInput, pwdInput].forEach(input => {
+        input.addEventListener('input', hideMessage);
+    });
+
+    form.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            loginBtn.click();
+        }
+    });
+</script>
+</body>
+</html>

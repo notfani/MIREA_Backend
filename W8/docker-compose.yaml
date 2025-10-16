@@ -10,6 +10,8 @@ services:
     volumes:
       - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
       - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 2s
@@ -22,10 +24,9 @@ services:
       db:
         condition: service_healthy
     environment:
-      # Rocket сам возьмёт ROCKET_DATABASES, но если хотите – можно передать переменную
       ROCKET_DATABASES: '{postgres={url="postgres://postgres:postgres@db:5432/postgres"}}'
     volumes:
-      - ./uploads:/app/uploads   # хранилище PDF
+      - ./uploads:/app/uploads
     restart: unless-stopped
 
   nginx:

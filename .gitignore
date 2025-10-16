@@ -5,3 +5,4 @@ client.json
 /W5/php/uploads
 /W7/php/src/logs/app.log
 /W8/target
+/W8/.sqlx

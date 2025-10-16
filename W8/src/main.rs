@@ -1,11 +1,13 @@
+use rocket::fairing::AdHoc;
 use rocket::fs::NamedFile;
 use rocket::http::{Cookie, CookieJar, Status};
 use rocket::response::status::Created;
-use rocket::serde::{Deserialize, Serialize};
+use rocket::serde::{Deserialize, Serialize, json::Json};
 use rocket::tokio::fs;
-use rocket::tokio::io::AsyncWriteExt;
-use rocket::{form::Form, fs::TempFile, http::uri::Origin};
-use rocket_dyn_templates::{context, Template};
+use rocket::{form::Form, fs::TempFile, State};
+use rocket::{get, post, delete, launch, routes};
+use rocket::FromForm;
+use rocket_dyn_templates::{Template, context};
 use sqlx::{postgres::PgPoolOptions, PgPool};
 use std::path::{Path, PathBuf};
 use bcrypt::{hash, verify, DEFAULT_COST};
@@ -37,7 +39,7 @@ struct PdfRow {
     id: i32,
     filename: String,
     original_name: String,
-    uploaded_at: DateTime<Utc>,
+    uploaded_at: String,
 }
 
 async fn init_pool() -> PgPool {
@@ -55,14 +57,15 @@ async fn init_pool() -> PgPool {
 }
 
 #[post("/login", data = "<body>")]
-async fn login(cookies: &CookieJar<'_>, db: &PgPool, body: Json<AuthReq<'_>>) -> Json<OkReply> {
-    let rec = sqlx::query!("SELECT id, pwd_hash FROM users WHERE login = $1", body.login)
-        .fetch_optional(db)
+async fn login(cookies: &CookieJar<'_>, db: &State<PgPool>, body: Json<AuthReq<'_>>) -> Json<OkReply> {
+    let rec = sqlx::query_as::<_, (i32, String)>("SELECT id, pwd_hash FROM users WHERE login = $1")
+        .bind(body.login)
+        .fetch_optional(db.inner())
         .await
         .unwrap();
-    if let Some(u) = rec {
-        if verify(body.pwd, &u.pwd_hash).unwrap_or(false) {
-            cookies.add_private(Cookie::new("uid", u.id.to_string()));
+    if let Some((id, pwd_hash)) = rec {
+        if verify(body.pwd, &pwd_hash).unwrap_or(false) {
+            cookies.add_private(Cookie::new("uid", id.to_string()));
             return Json(OkReply { ok: true });
         }
     }
@@ -70,14 +73,14 @@ async fn login(cookies: &CookieJar<'_>, db: &PgPool, body: Json<AuthReq<'_>>) ->
 }
 
 #[post("/register", data = "<body>")]
-async fn register(db: &PgPool, body: Json<AuthReq<'_>>) -> Result<Created<Json<OkReply>>, Status> {
+async fn register(db: &State<PgPool>, body: Json<AuthReq<'_>>) -> Result<Created<Json<OkReply>>, Status> {
     let pwd_hash = hash(body.pwd, DEFAULT_COST).map_err(|_| Status::InternalServerError)?;
-    let id = sqlx::query!(
-        "INSERT INTO users (login, pwd_hash) VALUES ($1, $2) RETURNING id",
-        body.login,
-        pwd_hash
+    let _id = sqlx::query_as::<_, (i32,)>(
+        "INSERT INTO users (login, pwd_hash) VALUES ($1, $2) RETURNING id"
     )
-    .fetch_one(db)
+    .bind(body.login)
+    .bind(pwd_hash)
+    .fetch_one(db.inner())
     .await
     .map_err(|_| Status::Conflict)?; // логин занят
     Ok(Created::new("/").body(Json(OkReply { ok: true })))
@@ -85,7 +88,7 @@ async fn register(db: &PgPool, body: Json<AuthReq<'_>>) -> Result<Created<Json<O
 
 #[post("/logout")]
 fn logout(cookies: &CookieJar<'_>) -> Json<OkReply> {
-    cookies.remove_private(Cookie::named("uid"));
+    cookies.remove_private(Cookie::from("uid"));
     Json(OkReply { ok: true })
 }
 
@@ -97,7 +100,7 @@ struct Upload<'r> {
 #[post("/upload", data = "<form>")]
 async fn upload(
     cookies: &CookieJar<'_>,
-    db: &PgPool,
+    db: &State<PgPool>,
     mut form: Form<Upload<'_>>,
 ) -> Result<Json<OkReply>, Status> {
     let uid = cookies
@@ -105,7 +108,7 @@ async fn upload(
         .and_then(|c| c.value().parse::<i32>().ok())
         .ok_or(Status::Unauthorized)?;
 
-    let temp = form.pdf.as_mut().unwrap();
+    let temp = &mut form.pdf;
     let orig = temp
         .raw_name()
         .as_ref()
@@ -124,15 +127,13 @@ async fn upload(
     fs::create_dir_all("uploads").await.map_err(|_| Status::InternalServerError)?;
     temp.persist_to(&dest).await.map_err(|_| Status::InternalServerError)?;
 
-    sqlx::query!(
-        "INSERT INTO pdfs (user_id, filename, original_name) VALUES ($1, $2, $3)",
-        uid,
-        fname,
-        orig
-    )
-    .execute(db)
-    .await
-    .map_err(|_| Status::InternalServerError)?;
+    sqlx::query("INSERT INTO pdfs (user_id, filename, original_name) VALUES ($1, $2, $3)")
+        .bind(uid)
+        .bind(&fname)
+        .bind(&orig)
+        .execute(db.inner())
+        .await
+        .map_err(|_| Status::InternalServerError)?;
 
     Ok(Json(OkReply { ok: true }))
 }
@@ -140,7 +141,7 @@ async fn upload(
 #[delete("/delete-pdf/<id>")]
 async fn delete_pdf(
     cookies: &CookieJar<'_>,
-    db: &PgPool,
+    db: &State<PgPool>,
     id: i32,
 ) -> Result<Json<OkReply>, Status> {
     let uid = cookies
@@ -148,17 +149,17 @@ async fn delete_pdf(
         .and_then(|c| c.value().parse::<i32>().ok())
         .ok_or(Status::Unauthorized)?;
 
-    let rec = sqlx::query!(
-        "DELETE FROM pdfs WHERE id = $1 AND user_id = $2 RETURNING filename",
-        id,
-        uid
+    let rec = sqlx::query_as::<_, (String,)>(
+        "DELETE FROM pdfs WHERE id = $1 AND user_id = $2 RETURNING filename"
     )
-    .fetch_optional(db)
+    .bind(id)
+    .bind(uid)
+    .fetch_optional(db.inner())
     .await
     .map_err(|_| Status::InternalServerError)?;
 
-    if let Some(r) = rec {
-        let path = PathBuf::from("uploads").join(&r.filename);
+    if let Some((filename,)) = rec {
+        let path = PathBuf::from("uploads").join(&filename);
         let _ = fs::remove_file(path).await; // не критично, если не получилось
         return Ok(Json(OkReply { ok: true }));
     }
@@ -168,7 +169,7 @@ async fn delete_pdf(
 #[get("/pdf/<id>")]
 async fn get_pdf(
     cookies: &CookieJar<'_>,
-    db: &PgPool,
+    db: &State<PgPool>,
     id: i32,
 ) -> Result<NamedFile, Status> {
     let uid = cookies
@@ -176,13 +177,17 @@ async fn get_pdf(
         .and_then(|c| c.value().parse::<i32>().ok())
         .ok_or(Status::Unauthorized)?;
 
-    let rec = sqlx::query!("SELECT filename FROM pdfs WHERE id = $1 AND user_id = $2", id, uid)
-        .fetch_optional(db)
-        .await
-        .map_err(|_| Status::InternalServerError)?;
+    let rec = sqlx::query_as::<_, (String,)>(
+        "SELECT filename FROM pdfs WHERE id = $1 AND user_id = $2"
+    )
+    .bind(id)
+    .bind(uid)
+    .fetch_optional(db.inner())
+    .await
+    .map_err(|_| Status::InternalServerError)?;
 
-    if let Some(r) = rec {
-        let path = PathBuf::from("uploads").join(&r.filename);
+    if let Some((filename,)) = rec {
+        let path = PathBuf::from("uploads").join(&filename);
         return NamedFile::open(path).await.map_err(|_| Status::NotFound);
     }
     Err(Status::NotFound)
@@ -190,37 +195,38 @@ async fn get_pdf(
 
 #[get("/")]
 async fn index() -> Template {
-    Template::render("auth", &())
+    Template::render("auth", context! {})
 }
 
 #[get("/private")]
-async fn private(cookies: &CookieJar<'_>, db: &PgPool) -> Result<Template, Status> {
+async fn private(cookies: &CookieJar<'_>, db: &State<PgPool>) -> Result<Template, Status> {
     let uid = cookies
         .get_private("uid")
         .and_then(|c| c.value().parse::<i32>().ok())
         .ok_or(Status::Unauthorized)?;
-    let user = sqlx::query!("SELECT login FROM users WHERE id = $1", uid)
-        .fetch_one(db)
+    let user = sqlx::query_as::<_, (String,)>("SELECT login FROM users WHERE id = $1")
+        .bind(uid)
+        .fetch_one(db.inner())
         .await
         .map_err(|_| Status::InternalServerError)?;
-    let files = sqlx::query!(
-        "SELECT id, filename, original_name, uploaded_at FROM pdfs WHERE user_id = $1 ORDER BY uploaded_at DESC",
-        uid
+    let files = sqlx::query_as::<_, (i32, String, String, DateTime<Utc>)>(
+        "SELECT id, filename, original_name, uploaded_at FROM pdfs WHERE user_id = $1 ORDER BY uploaded_at DESC"
     )
-    .fetch_all(db)
+    .bind(uid)
+    .fetch_all(db.inner())
     .await
     .unwrap_or_default();
 
     let ctx = PrivateContext {
-        login: user.login,
+        login: user.0,
         uid,
         files: files
             .into_iter()
-            .map(|r| PdfRow {
-                id: r.id,
-                filename: r.filename,
-                original_name: r.original_name,
-                uploaded_at: r.uploaded_at,
+            .map(|(id, filename, original_name, uploaded_at)| PdfRow {
+                id,
+                filename,
+                original_name,
+                uploaded_at: uploaded_at.to_rfc3339(),
             })
             .collect(),
     };
@@ -238,16 +244,16 @@ async fn static_files(file: PathBuf) -> Option<NamedFile> {
 }
 
 #[launch]
-fn rocket() -> _ {
-    let pool_rt = rocket::tokio::runtime::Handle::current();
-    let pool = pool_rt.block_on(init_pool());
-
+fn rocket() -> rocket::Rocket<rocket::Build> {
     rocket::build()
-        .manage(pool)
         .attach(Template::fairing())
+        .attach(AdHoc::try_on_ignite("DB", |rocket| async {
+            let pool = init_pool().await;
+            Ok(rocket.manage(pool))
+        }))
         .mount(
             "/api",
             routes![login, register, logout, upload, delete_pdf, get_pdf],
         )
         .mount("/", routes![index, private, css, static_files])
-}  
+}
