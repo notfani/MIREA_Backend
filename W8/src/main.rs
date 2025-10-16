@@ -1,5 +1,3 @@
-#[macro_use] extern crate rocket;
-
 use rocket::fs::NamedFile;
 use rocket::http::{Cookie, CookieJar, Status};
 use rocket::response::status::Created;

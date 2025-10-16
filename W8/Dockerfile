@@ -1,19 +1,24 @@
 # ---------- 1. стадия сборки ----------
-FROM rust:1.75 AS builder
+FROM rust:1.78 AS builder
 WORKDIR /build
 
-# кэшируем зависимости
-COPY Cargo.toml Cargo.lock ./
+# 1. копируем только Cargo.toml
+COPY Cargo.toml ./
+
+# 2. СРАЗУ создаём заглушку-файл, чтобы у Cargo появилась цель
 RUN mkdir src && echo "fn main() {}" > src/main.rs
+
+# 3. теперь можно генерировать lock и кэшировать зависимости
 RUN cargo build --release
-# теперь копируем настоящий код
+# (cargo сам создаст Cargo.lock при первом build)
+
+# 4. копируем настоящий код и пересобираем
 COPY src ./src
 COPY templates ./templates
-# пересобираем с реальным main.rs
 RUN touch src/main.rs && cargo build --release
 
-# ---------- 2. финальный образ ----------
-FROM debian:bookworm-slim
+
+FROM debian:13-slim
 RUN apt-get update \
     && apt-get install -y libssl3 ca-certificates \
     && rm -rf /var/lib/apt/lists/*
