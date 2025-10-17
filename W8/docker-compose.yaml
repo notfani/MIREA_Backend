@@ -18,13 +18,23 @@ services:
       timeout: 2s
       retries: 10
 
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
   rust:
     build: .
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_started
     environment:
       ROCKET_DATABASES: '{postgres={url="postgres://postgres:postgres@db:5432/postgres"}}'
+      REDIS_URL: 'redis://redis:6379'
     volumes:
       - ./uploads:/app/uploads
     restart: unless-stopped

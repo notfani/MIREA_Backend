@@ -2,17 +2,20 @@ use rocket::fairing::AdHoc;
 use rocket::fs::NamedFile;
 use rocket::http::{Cookie, CookieJar, Status};
 use rocket::response::status::Created;
+use rocket::response::Redirect;
 use rocket::serde::{Deserialize, Serialize, json::Json};
 use rocket::tokio::fs;
 use rocket::{form::Form, fs::TempFile, State};
 use rocket::{get, post, delete, launch, routes};
 use rocket::FromForm;
+use rocket::Either;
 use rocket_dyn_templates::{Template, context};
 use sqlx::{postgres::PgPoolOptions, PgPool};
 use std::path::{Path, PathBuf};
 use bcrypt::{hash, verify, DEFAULT_COST};
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
+use redis::AsyncCommands;
 
 type Result<T, E = rocket::response::Debug<sqlx::Error>> = std::result::Result<T, E>;
 
@@ -56,14 +59,54 @@ async fn init_pool() -> PgPool {
         .expect("Cannot connect to PG")
 }
 
-#[post("/login", data = "<body>")]
-async fn login(cookies: &CookieJar<'_>, db: &State<PgPool>, body: Json<AuthReq<'_>>) -> Json<OkReply> {
-    let rec = sqlx::query_as::<_, (i32, String)>("SELECT id, pwd_hash FROM users WHERE login = $1")
-        .bind(body.login)
-        .fetch_optional(db.inner())
+async fn init_redis() -> redis::aio::ConnectionManager {
+    let url = std::env::var("REDIS_URL")
+        .unwrap_or_else(|_| "redis://redis:6379".into());
+    let client = redis::Client::open(url)
+        .expect("Cannot create Redis client");
+    redis::aio::ConnectionManager::new(client)
         .await
-        .unwrap();
-    if let Some((id, pwd_hash)) = rec {
+        .expect("Cannot connect to Redis")
+}
+
+#[post("/login", data = "<body>")]
+async fn login(
+    cookies: &CookieJar<'_>,
+    db: &State<PgPool>,
+    redis: &State<redis::aio::ConnectionManager>,
+    body: Json<AuthReq<'_>>
+) -> Json<OkReply> {
+    let cache_key = format!("user:{}:hash", body.login);
+    let mut redis_conn = redis.inner().clone();
+
+    let cached_hash: Option<String> = redis_conn.get(&cache_key).await.ok();
+
+    let (id, pwd_hash) = if let Some(hash) = cached_hash {
+        let rec = sqlx::query_as::<_, (i32,)>("SELECT id FROM users WHERE login = $1")
+            .bind(body.login)
+            .fetch_optional(db.inner())
+            .await
+            .unwrap();
+        if let Some((id,)) = rec {
+            (Some(id), hash)
+        } else {
+            return Json(OkReply { ok: false });
+        }
+    } else {
+        let rec = sqlx::query_as::<_, (i32, String)>("SELECT id, pwd_hash FROM users WHERE login = $1")
+            .bind(body.login)
+            .fetch_optional(db.inner())
+            .await
+            .unwrap();
+        if let Some((id, hash)) = rec {
+            let _: Result<(), _> = redis_conn.set_ex(&cache_key, &hash, 3600).await;
+            (Some(id), hash)
+        } else {
+            return Json(OkReply { ok: false });
+        }
+    };
+
+    if let Some(id) = id {
         if verify(body.pwd, &pwd_hash).unwrap_or(false) {
             cookies.add_private(Cookie::new("uid", id.to_string()));
             return Json(OkReply { ok: true });
@@ -73,16 +116,25 @@ async fn login(cookies: &CookieJar<'_>, db: &State<PgPool>, body: Json<AuthReq<'
 }
 
 #[post("/register", data = "<body>")]
-async fn register(db: &State<PgPool>, body: Json<AuthReq<'_>>) -> Result<Created<Json<OkReply>>, Status> {
+async fn register(
+    db: &State<PgPool>,
+    redis: &State<redis::aio::ConnectionManager>,
+    body: Json<AuthReq<'_>>
+) -> Result<Created<Json<OkReply>>, Status> {
     let pwd_hash = hash(body.pwd, DEFAULT_COST).map_err(|_| Status::InternalServerError)?;
-    let _id = sqlx::query_as::<_, (i32,)>(
+    let result = sqlx::query_as::<_, (i32,)>(
         "INSERT INTO users (login, pwd_hash) VALUES ($1, $2) RETURNING id"
     )
     .bind(body.login)
-    .bind(pwd_hash)
+    .bind(&pwd_hash)
     .fetch_one(db.inner())
     .await
-    .map_err(|_| Status::Conflict)?; // логин занят
+    .map_err(|_| Status::Conflict)?;
+
+    let cache_key = format!("user:{}:hash", body.login);
+    let mut redis_conn = redis.inner().clone();
+    let _: Result<(), _> = redis_conn.set_ex(&cache_key, &pwd_hash, 3600).await;
+
     Ok(Created::new("/").body(Json(OkReply { ok: true })))
 }
 
@@ -123,7 +175,6 @@ async fn upload(
     let fname = format!("{}.{}", Uuid::new_v4(), ext);
     let dest = PathBuf::from("uploads").join(&fname);
 
-    // создаём каталог uploads, если его нет
     fs::create_dir_all("uploads").await.map_err(|_| Status::InternalServerError)?;
     temp.persist_to(&dest).await.map_err(|_| Status::InternalServerError)?;
 
@@ -160,7 +211,7 @@ async fn delete_pdf(
 
     if let Some((filename,)) = rec {
         let path = PathBuf::from("uploads").join(&filename);
-        let _ = fs::remove_file(path).await; // не критично, если не получилось
+        let _ = fs::remove_file(path).await;
         return Ok(Json(OkReply { ok: true }));
     }
     Err(Status::NotFound)
@@ -194,22 +245,41 @@ async fn get_pdf(
 }
 
 #[get("/")]
-async fn index() -> Template {
-    Template::render("auth", context! {})
+async fn index(cookies: &CookieJar<'_>) -> Either<Redirect, Template> {
+    if let Some(uid_cookie) = cookies.get_private("uid") {
+        if uid_cookie.value().parse::<i32>().is_ok() {
+            return Either::Left(Redirect::to("/private"));
+        }
+    }
+    Either::Right(Template::render("auth", context! {}))
 }
 
 #[get("/private")]
-async fn private(cookies: &CookieJar<'_>, db: &State<PgPool>) -> Result<Template, Status> {
-    let uid = cookies
+async fn private(cookies: &CookieJar<'_>, db: &State<PgPool>) -> Either<Redirect, Template> {
+    let uid = match cookies
         .get_private("uid")
         .and_then(|c| c.value().parse::<i32>().ok())
-        .ok_or(Status::Unauthorized)?;
-    let user = sqlx::query_as::<_, (String,)>("SELECT login FROM users WHERE id = $1")
+    {
+        Some(id) => id,
+        None => return Either::Left(Redirect::to("/")),
+    };
+
+    let user = match sqlx::query_as::<_, (String,)>("SELECT login FROM users WHERE id = $1")
         .bind(uid)
-        .fetch_one(db.inner())
+        .fetch_optional(db.inner())
         .await
-        .map_err(|_| Status::InternalServerError)?;
-    let files = sqlx::query_as::<_, (i32, String, String, DateTime<Utc>)>(
+    {
+        Ok(Some(row)) => row,
+        Ok(None) => {
+            cookies.remove_private(Cookie::from("uid"));
+            return Either::Left(Redirect::to("/"));
+        }
+        Err(_) => {
+            return Either::Left(Redirect::to("/"));
+        }
+    };
+
+    let files = sqlx::query_as::<_, (i32, String, String, chrono::DateTime<Utc>)>(
         "SELECT id, filename, original_name, uploaded_at FROM pdfs WHERE user_id = $1 ORDER BY uploaded_at DESC"
     )
     .bind(uid)
@@ -230,7 +300,8 @@ async fn private(cookies: &CookieJar<'_>, db: &State<PgPool>) -> Result<Template
             })
             .collect(),
     };
-    Ok(Template::render("private", &ctx))
+
+    Either::Right(Template::render("private", &ctx))
 }
 
 #[get("/css/<file..>")]
@@ -250,6 +321,10 @@ fn rocket() -> rocket::Rocket<rocket::Build> {
         .attach(AdHoc::try_on_ignite("DB", |rocket| async {
             let pool = init_pool().await;
             Ok(rocket.manage(pool))
+        }))
+        .attach(AdHoc::try_on_ignite("Redis", |rocket| async {
+            let redis = init_redis().await;
+            Ok(rocket.manage(redis))
         }))
         .mount(
             "/api",
