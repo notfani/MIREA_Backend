@@ -1,6 +1,6 @@
 use rocket::fairing::AdHoc;
 use rocket::fs::NamedFile;
-use rocket::http::{Cookie, CookieJar, Status};
+use rocket::http::{Cookie, CookieJar, Status, Accept, ContentType};
 use rocket::response::status::Created;
 use rocket::response::Redirect;
 use rocket::serde::{Deserialize, Serialize, json::Json};
@@ -13,7 +13,7 @@ use rocket_dyn_templates::{Template, context};
 use sqlx::{postgres::PgPoolOptions, PgPool};
 use std::path::{Path, PathBuf};
 use bcrypt::{hash, verify, DEFAULT_COST};
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use uuid::Uuid;
 use redis::AsyncCommands;
 
@@ -35,6 +35,7 @@ struct PrivateContext {
     login: String,
     uid: i32,
     files: Vec<PdfRow>,
+    theme: String,
 }
 
 #[derive(Serialize)]
@@ -74,8 +75,10 @@ async fn login(
     cookies: &CookieJar<'_>,
     db: &State<PgPool>,
     redis: &State<redis::aio::ConnectionManager>,
+    accept: &Accept,
+    content_type: &ContentType,
     body: Json<AuthReq<'_>>
-) -> Json<OkReply> {
+) -> Either<Redirect, Json<OkReply>> {
     let cache_key = format!("user:{}:hash", body.login);
     let mut redis_conn = redis.inner().clone();
 
@@ -90,7 +93,7 @@ async fn login(
         if let Some((id,)) = rec {
             (Some(id), hash)
         } else {
-            return Json(OkReply { ok: false });
+            return Either::Right(Json(OkReply { ok: false }));
         }
     } else {
         let rec = sqlx::query_as::<_, (i32, String)>("SELECT id, pwd_hash FROM users WHERE login = $1")
@@ -102,17 +105,33 @@ async fn login(
             let _: Result<(), _> = redis_conn.set_ex(&cache_key, &hash, 3600).await;
             (Some(id), hash)
         } else {
-            return Json(OkReply { ok: false });
+            return Either::Right(Json(OkReply { ok: false }));
         }
     };
 
     if let Some(id) = id {
         if verify(body.pwd, &pwd_hash).unwrap_or(false) {
-            cookies.add_private(Cookie::new("uid", id.to_string()));
-            return Json(OkReply { ok: true });
+            // Явно задаём параметры куки (path), чтобы она точно применялась при навигации
+            let mut cookie = Cookie::new("uid", id.to_string());
+            cookie.set_path("/");
+            cookies.add_private(cookie);
+
+            let is_json = content_type.is_json();
+            // simpler check: convert Accept header to string and search for html
+            let prefers_html = accept.to_string().contains("html");
+
+            if is_json {
+                return Either::Right(Json(OkReply { ok: true }));
+            }
+
+            if prefers_html {
+                return Either::Left(Redirect::to("/private"));
+            } else {
+                return Either::Right(Json(OkReply { ok: true }));
+            }
         }
     }
-    Json(OkReply { ok: false })
+    Either::Right(Json(OkReply { ok: false }))
 }
 
 #[post("/register", data = "<body>")]
@@ -122,7 +141,7 @@ async fn register(
     body: Json<AuthReq<'_>>
 ) -> Result<Created<Json<OkReply>>, Status> {
     let pwd_hash = hash(body.pwd, DEFAULT_COST).map_err(|_| Status::InternalServerError)?;
-    let result = sqlx::query_as::<_, (i32,)>(
+    let _result = sqlx::query_as::<_, (i32,)>(
         "INSERT INTO users (login, pwd_hash) VALUES ($1, $2) RETURNING id"
     )
     .bind(body.login)
@@ -140,7 +159,7 @@ async fn register(
 
 #[post("/logout")]
 fn logout(cookies: &CookieJar<'_>) -> Json<OkReply> {
-    cookies.remove_private(Cookie::from("uid"));
+    cookies.remove_private(Cookie::named("uid"));
     Json(OkReply { ok: true })
 }
 
@@ -245,13 +264,63 @@ async fn get_pdf(
 }
 
 #[get("/")]
-async fn index(cookies: &CookieJar<'_>) -> Either<Redirect, Template> {
+async fn index(cookies: &CookieJar<'_>, db: &State<PgPool>) -> Either<Redirect, Template> {
     if let Some(uid_cookie) = cookies.get_private("uid") {
-        if uid_cookie.value().parse::<i32>().is_ok() {
-            return Either::Left(Redirect::to("/private"));
+        if let Ok(id) = uid_cookie.value().parse::<i32>() {
+            let exists = match sqlx::query_as::<_, (i32,)>("SELECT id FROM users WHERE id = $1")
+                .bind(id)
+                .fetch_optional(db.inner())
+                .await
+            {
+                Ok(Some(_)) => true,
+                _ => false,
+            };
+
+            if exists {
+                return Either::Left(Redirect::to("/private"));
+            } else {
+                // Если пользователя нет, удаляем cookie и показываем страницу логина
+                cookies.remove_private(Cookie::named("uid"));
+            }
+        } else {
+            // Некорректное значение куки — удаляем и показываем логин
+            cookies.remove_private(Cookie::named("uid"));
         }
     }
     Either::Right(Template::render("auth", context! {}))
+}
+
+#[derive(FromForm)]
+struct ThemeForm<'r> {
+    theme: &'r str,
+}
+
+#[post("/theme", data = "<form>")]
+async fn set_theme(
+    cookies: &CookieJar<'_>,
+    db: &State<PgPool>,
+    form: Form<ThemeForm<'_>>,
+) -> Result<Json<OkReply>, Status> {
+    let uid = cookies
+        .get_private("uid")
+        .and_then(|c| c.value().parse::<i32>().ok())
+        .ok_or(Status::Unauthorized)?;
+
+    let theme = form.theme;
+    // allow only known themes
+    match theme {
+        "light" | "dark" | "colorblind" => {}
+        _ => return Err(Status::BadRequest),
+    }
+
+    sqlx::query("UPDATE users SET theme = $1 WHERE id = $2")
+        .bind(theme)
+        .bind(uid)
+        .execute(db.inner())
+        .await
+        .map_err(|_| Status::InternalServerError)?;
+
+    Ok(Json(OkReply { ok: true }))
 }
 
 #[get("/private")]
@@ -264,18 +333,18 @@ async fn private(cookies: &CookieJar<'_>, db: &State<PgPool>) -> Either<Redirect
         None => return Either::Left(Redirect::to("/")),
     };
 
-    let user = match sqlx::query_as::<_, (String,)>("SELECT login FROM users WHERE id = $1")
+    let user = match sqlx::query_as::<_, (String, String)>("SELECT login, theme FROM users WHERE id = $1")
         .bind(uid)
         .fetch_optional(db.inner())
         .await
     {
         Ok(Some(row)) => row,
         Ok(None) => {
-            cookies.remove_private(Cookie::from("uid"));
-            return Either::Left(Redirect::to("/"));
+            cookies.remove_private(Cookie::named("uid"));
+            return Either::Right(Template::render("auth", context! {}));
         }
         Err(_) => {
-            return Either::Left(Redirect::to("/"));
+            return Either::Right(Template::render("auth", context! {}));
         }
     };
 
@@ -299,6 +368,7 @@ async fn private(cookies: &CookieJar<'_>, db: &State<PgPool>) -> Either<Redirect
                 uploaded_at: uploaded_at.to_rfc3339(),
             })
             .collect(),
+        theme: user.1,
     };
 
     Either::Right(Template::render("private", &ctx))
@@ -328,7 +398,7 @@ fn rocket() -> rocket::Rocket<rocket::Build> {
         }))
         .mount(
             "/api",
-            routes![login, register, logout, upload, delete_pdf, get_pdf],
+            routes![login, register, logout, upload, delete_pdf, get_pdf, set_theme],
         )
         .mount("/", routes![index, private, css, static_files])
 }

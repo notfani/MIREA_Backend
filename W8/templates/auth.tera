@@ -258,12 +258,12 @@
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify(payload),
-                credentials: 'same-origin'
+                credentials: 'include'
             });
             const data = await response.json().catch(() => ({}));
             if (response.ok && data.ok) {
                 showMessage('Успешный вход! Перенаправление...', 'success');
-                setTimeout(() => location.href = '/private', 1000);
+                setTimeout(() => location.replace('/private'), 600);
             } else {
                 showMessage('Неверный логин или пароль.\nЕсли у вас нет аккаунта, нажмите «Создать аккаунт»', 'error');
             }

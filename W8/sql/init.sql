@@ -3,7 +3,8 @@ CREATE TABLE users (
     id         SERIAL PRIMARY KEY,
     login      TEXT UNIQUE NOT NULL,
     pwd_hash   TEXT        NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT NOW()
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    theme      TEXT        DEFAULT 'light'
 );
 
 -- Таблица загруженных PDF

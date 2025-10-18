@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Личный кабинет</title>
-    <link rel="stylesheet" href="/css/private.css">
+    <link id="themeCss" rel="stylesheet" href="/css/{{ theme | default(value="light") }}.css">
     <style>
         /* минимальные встроенные стили, чтобы не раздувать файл */
         main{max-width:960px;margin:24px auto;padding:0 16px}
@@ -40,16 +40,16 @@
             <div class="themebox">
                 <label for="themeSelect">Тема:</label>
                 <select id="themeSelect">
-                    <option value="light">Light</option>
-                    <option value="dark">Dark</option>
-                    <option value="colorblind">Colorblind</option>
+                    <option value="light"{% if theme == "light" %} selected{% endif %}>Light</option>
+                    <option value="dark"{% if theme == "dark" %} selected{% endif %}>Dark</option>
+                    <option value="colorblind"{% if theme == "colorblind" %} selected{% endif %}>Colorblind</option>
                 </select>
                 <span id="themeMsg"></span>
             </div>
             <button class="logout" id="btnLogout" type="button">Выйти</button>
         </div>
         <h1>Привет, {{ login }}!</h1>
-        <img id="bannerImg" src="/static/light.svg" alt="banner">
+        <img id="bannerImg" src="{% if theme == 'dark' %}/static/dark.svg{% elif theme == 'colorblind' %}/static/cb.svg{% else %}/static/light.svg{% endif %}" alt="banner">
     </main>
 </header>
 
