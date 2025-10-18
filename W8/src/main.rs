@@ -15,6 +15,7 @@ use std::path::{Path, PathBuf};
 use bcrypt::{hash, verify, DEFAULT_COST};
 use chrono::Utc;
 use uuid::Uuid;
+use serde_json::json;
 use redis::AsyncCommands;
 
 type Result<T, E = rocket::response::Debug<sqlx::Error>> = std::result::Result<T, E>;
@@ -159,7 +160,7 @@ async fn register(
 
 #[post("/logout")]
 fn logout(cookies: &CookieJar<'_>) -> Json<OkReply> {
-    cookies.remove_private(Cookie::named("uid"));
+    cookies.remove_private(Cookie::from("uid"));
     Json(OkReply { ok: true })
 }
 
@@ -279,12 +280,10 @@ async fn index(cookies: &CookieJar<'_>, db: &State<PgPool>) -> Either<Redirect, 
             if exists {
                 return Either::Left(Redirect::to("/private"));
             } else {
-                // Если пользователя нет, удаляем cookie и показываем страницу логина
-                cookies.remove_private(Cookie::named("uid"));
+                cookies.remove_private(Cookie::from("uid"));
             }
         } else {
-            // Некорректное значение куки — удаляем и показываем логин
-            cookies.remove_private(Cookie::named("uid"));
+            cookies.remove_private(Cookie::from("uid"));
         }
     }
     Either::Right(Template::render("auth", context! {}))
@@ -300,7 +299,7 @@ async fn set_theme(
     cookies: &CookieJar<'_>,
     db: &State<PgPool>,
     form: Form<ThemeForm<'_>>,
-) -> Result<Json<OkReply>, Status> {
+) -> Result<Json<serde_json::Value>, Status> {
     let uid = cookies
         .get_private("uid")
         .and_then(|c| c.value().parse::<i32>().ok())
@@ -320,7 +319,33 @@ async fn set_theme(
         .await
         .map_err(|_| Status::InternalServerError)?;
 
-    Ok(Json(OkReply { ok: true }))
+    Ok(Json(json!({"ok": true, "theme": theme})))
+}
+
+#[get("/theme")]
+async fn get_theme(
+    cookies: &CookieJar<'_>,
+    db: &State<PgPool>,
+) -> Result<Json<serde_json::Value>, Status> {
+    let uid = cookies
+        .get_private("uid")
+        .and_then(|c| c.value().parse::<i32>().ok())
+        .ok_or(Status::Unauthorized)?;
+
+    let rec = sqlx::query_as::<_, (Option<String>,)>(
+        "SELECT theme FROM users WHERE id = $1"
+    )
+    .bind(uid)
+    .fetch_optional(db.inner())
+    .await
+    .map_err(|_| Status::InternalServerError)?;
+
+    if let Some((theme_opt,)) = rec {
+        let theme = theme_opt.unwrap_or_else(|| "light".into());
+        Ok(Json(json!({"ok": true, "theme": theme})))
+    } else {
+        Err(Status::NotFound)
+    }
 }
 
 #[get("/private")]
@@ -333,14 +358,16 @@ async fn private(cookies: &CookieJar<'_>, db: &State<PgPool>) -> Either<Redirect
         None => return Either::Left(Redirect::to("/")),
     };
 
-    let user = match sqlx::query_as::<_, (String, String)>("SELECT login, theme FROM users WHERE id = $1")
+    let user = match sqlx::query_as::<_, (String, String)>(
+        "SELECT login, COALESCE(theme, 'light')::text as theme FROM users WHERE id = $1"
+    )
         .bind(uid)
         .fetch_optional(db.inner())
         .await
     {
         Ok(Some(row)) => row,
         Ok(None) => {
-            cookies.remove_private(Cookie::named("uid"));
+            cookies.remove_private(Cookie::from("uid"));
             return Either::Right(Template::render("auth", context! {}));
         }
         Err(_) => {
@@ -371,6 +398,8 @@ async fn private(cookies: &CookieJar<'_>, db: &State<PgPool>) -> Either<Redirect
         theme: user.1,
     };
 
+    eprintln!("DEBUG: Rendering private page for user {} with theme: {}", uid, ctx.theme);
+
     Either::Right(Template::render("private", &ctx))
 }
 
@@ -398,7 +427,7 @@ fn rocket() -> rocket::Rocket<rocket::Build> {
         }))
         .mount(
             "/api",
-            routes![login, register, logout, upload, delete_pdf, get_pdf, set_theme],
+            routes![login, register, logout, upload, delete_pdf, get_pdf, set_theme, get_theme],
         )
         .mount("/", routes![index, private, css, static_files])
 }

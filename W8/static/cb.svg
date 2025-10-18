@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 300">
+  <defs>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#000" stroke-width="2"/>
+    </pattern>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="300" fill="#ffffff"/>
+  <rect width="1200" height="300" fill="url(#grid)" opacity="0.05"/>
+
+  <!-- Bold shapes for high contrast -->
+  <rect x="100" y="80" width="120" height="140" fill="#0000ff" opacity="0.15" stroke="#0000ff" stroke-width="4"/>
+  <rect x="980" y="100" width="140" height="120" fill="#ff8000" opacity="0.15" stroke="#ff8000" stroke-width="4"/>
+
+  <!-- Triangular patterns -->
+  <polygon points="280,80 320,80 300,120" fill="#0000ff" opacity="0.2" stroke="#0000ff" stroke-width="3"/>
+  <polygon points="280,140 320,140 300,180" fill="#ff8000" opacity="0.2" stroke="#ff8000" stroke-width="3"/>
+
+  <polygon points="880,100 920,100 900,140" fill="#ff8000" opacity="0.2" stroke="#ff8000" stroke-width="3"/>
+  <polygon points="880,160 920,160 900,200" fill="#0000ff" opacity="0.2" stroke="#0000ff" stroke-width="3"/>
+
+  <!-- File icons with high contrast borders -->
+  <g transform="translate(400, 90)">
+    <rect width="70" height="90" fill="#f8f9fa" stroke="#0000ff" stroke-width="4" rx="3"/>
+    <rect x="8" y="20" width="54" height="6" fill="#0000ff"/>
+    <rect x="8" y="32" width="46" height="6" fill="#0000ff"/>
+    <rect x="8" y="44" width="52" height="6" fill="#0000ff"/>
+    <rect x="8" y="56" width="42" height="6" fill="#0000ff"/>
+    <text x="35" y="80" font-family="monospace" font-size="14" font-weight="bold" fill="#0000ff" text-anchor="middle">PDF</text>
+  </g>
+
+  <g transform="translate(540, 110)">
+    <rect width="60" height="80" fill="#f8f9fa" stroke="#ff8000" stroke-width="4" rx="3"/>
+    <rect x="8" y="18" width="44" height="5" fill="#ff8000"/>
+    <rect x="8" y="28" width="38" height="5" fill="#ff8000"/>
+    <rect x="8" y="38" width="42" height="5" fill="#ff8000"/>
+    <rect x="8" y="48" width="36" height="5" fill="#ff8000"/>
+    <text x="30" y="70" font-family="monospace" font-size="12" font-weight="bold" fill="#ff8000" text-anchor="middle">PDF</text>
+  </g>
+
+  <g transform="translate(670, 100)">
+    <rect width="65" height="85" fill="#f8f9fa" stroke="#0000ff" stroke-width="4" rx="3"/>
+    <rect x="8" y="19" width="49" height="5" fill="#0000ff"/>
+    <rect x="8" y="29" width="42" height="5" fill="#0000ff"/>
+    <rect x="8" y="39" width="47" height="5" fill="#0000ff"/>
+    <rect x="8" y="49" width="39" height="5" fill="#0000ff"/>
+    <text x="32" y="72" font-family="monospace" font-size="13" font-weight="bold" fill="#0000ff" text-anchor="middle">PDF</text>
+  </g>
+
+  <!-- Large icons for better visibility -->
+  <text x="50" y="50" font-size="40" fill="#0000ff">👁</text>
+  <text x="1130" y="50" font-size="40" fill="#ff8000">👁</text>
+
+  <!-- Bold text with strong outline -->
+  <text x="600" y="255" font-family="system-ui, sans-serif" font-size="28" font-weight="900" fill="#000000" text-anchor="middle" letter-spacing="2">
+    ♿ PDF STORAGE - ACCESSIBLE MODE
+  </text>
+  <rect x="200" y="265" width="800" height="4" fill="#ff8000"/>
+</svg>
+

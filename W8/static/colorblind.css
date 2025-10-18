@@ -1,10 +1,12 @@
-/* Color-blind friendly theme (high contrast) */
 :root {
     --bg: #ffffff;
+    --bg-secondary: #f8f9fa;
     --fg: #000000;
     --muted: #333333;
     --primary: #0000ff; /* blue */
     --secondary: #ff8000; /* orange */
+    --danger: #cc0000; /* red */
+    --success: #008000; /* green */
 }
 
 body {
@@ -12,17 +14,24 @@ body {
     color: var(--fg);
     font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
     margin: 0;
+    line-height: 1.6;
 }
 
 header, footer {
     padding: 12px 16px;
     border-bottom: 3px solid var(--secondary);
+    background: var(--bg-secondary);
 }
 
 a {
     color: var(--primary);
     text-decoration: underline;
     text-underline-offset: 2px;
+    font-weight: 600;
+}
+
+a:hover {
+    color: var(--secondary);
 }
 
 button, .btn {
@@ -32,26 +41,79 @@ button, .btn {
     border-radius: 0;
     padding: 10px 14px;
     cursor: pointer;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transition: all 0.2s;
 }
 
-button:focus {
+button:hover, .btn:hover {
+    background: var(--secondary);
+    transform: scale(1.05);
+}
+
+button:focus, .btn:focus {
     outline: 4px solid var(--secondary);
     outline-offset: 2px;
+}
+
+button:disabled, .btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
 }
 
 input, select {
     padding: 10px 12px;
     border: 3px solid #000;
     border-radius: 0;
+    background: #fff;
+    font-size: 16px;
+}
+
+input:focus, select:focus {
+    outline: 4px solid var(--primary);
+    outline-offset: 2px;
 }
 
 .card {
     background: #fff;
     border: 3px solid #000;
     padding: 18px;
+    margin: 16px 0;
+    box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.1);
 }
 
 .text-muted {
     color: var(--muted);
+    font-weight: 500;
 }
 
+.delete-btn {
+    background: var(--danger);
+    border-color: #000;
+}
+
+.delete-btn:hover {
+    background: #990000;
+}
+
+.logout {
+    background: var(--danger);
+}
+
+.logout:hover {
+    background: #990000;
+}
+
+ul.files li {
+    border: 2px solid #000;
+    margin: 8px 0;
+    padding: 12px;
+    background: var(--bg-secondary);
+}
+
+ul.files li:hover {
+    background: #ffe5cc;
+    border-color: var(--secondary);
+}
