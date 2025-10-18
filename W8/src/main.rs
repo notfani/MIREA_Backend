@@ -112,13 +112,11 @@ async fn login(
 
     if let Some(id) = id {
         if verify(body.pwd, &pwd_hash).unwrap_or(false) {
-            // Явно задаём параметры куки (path), чтобы она точно применялась при навигации
             let mut cookie = Cookie::new("uid", id.to_string());
             cookie.set_path("/");
             cookies.add_private(cookie);
 
             let is_json = content_type.is_json();
-            // simpler check: convert Accept header to string and search for html
             let prefers_html = accept.to_string().contains("html");
 
             if is_json {
@@ -181,12 +179,23 @@ async fn upload(
         .ok_or(Status::Unauthorized)?;
 
     let temp = &mut form.pdf;
+
+    if temp.len() == 0 {
+        eprintln!("ERROR: No file uploaded or file is empty");
+        return Err(Status::BadRequest);
+    }
+
     let orig = temp
         .raw_name()
         .as_ref()
-        .ok_or(Status::BadRequest)?
+        .ok_or_else(|| {
+            eprintln!("ERROR: No filename provided");
+            Status::BadRequest
+        })?
         .dangerous_unsafe_unsanitized_raw()
         .to_string();
+
+    eprintln!("INFO: Uploading file: {} (size: {} bytes) for user {}", orig, temp.len(), uid);
 
     let ext = Path::new(&orig)
         .extension()
@@ -195,8 +204,17 @@ async fn upload(
     let fname = format!("{}.{}", Uuid::new_v4(), ext);
     let dest = PathBuf::from("uploads").join(&fname);
 
-    fs::create_dir_all("uploads").await.map_err(|_| Status::InternalServerError)?;
-    temp.persist_to(&dest).await.map_err(|_| Status::InternalServerError)?;
+    fs::create_dir_all("uploads").await.map_err(|e| {
+        eprintln!("ERROR: Failed to create uploads directory: {}", e);
+        Status::InternalServerError
+    })?;
+
+    temp.copy_to(&dest).await.map_err(|e| {
+        eprintln!("ERROR: Failed to copy file to {:?}: {}", dest, e);
+        Status::InternalServerError
+    })?;
+
+    eprintln!("INFO: File saved to {:?}", dest);
 
     sqlx::query("INSERT INTO pdfs (user_id, filename, original_name) VALUES ($1, $2, $3)")
         .bind(uid)
@@ -204,8 +222,12 @@ async fn upload(
         .bind(&orig)
         .execute(db.inner())
         .await
-        .map_err(|_| Status::InternalServerError)?;
+        .map_err(|e| {
+            eprintln!("ERROR: Failed to insert into database: {}", e);
+            Status::InternalServerError
+        })?;
 
+    eprintln!("INFO: File {} successfully uploaded by user {}", fname, uid);
     Ok(Json(OkReply { ok: true }))
 }
 
@@ -306,7 +328,6 @@ async fn set_theme(
         .ok_or(Status::Unauthorized)?;
 
     let theme = form.theme;
-    // allow only known themes
     match theme {
         "light" | "dark" | "colorblind" => {}
         _ => return Err(Status::BadRequest),

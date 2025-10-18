@@ -4,5 +4,11 @@ port    = 8000
 secret_key = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 template_dir = "/app/templates"
 
+[default.limits]
+forms = "32 MiB"
+data-form = "32 MiB"
+file = "32 MiB"
+"file/pdf" = "32 MiB"
+
 [default.databases.postgres]
 url = "postgres://postgres:postgres@db:5432/postgres"

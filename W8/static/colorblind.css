@@ -3,10 +3,10 @@
     --bg-secondary: #f8f9fa;
     --fg: #000000;
     --muted: #333333;
-    --primary: #0000ff; /* blue */
-    --secondary: #ff8000; /* orange */
-    --danger: #cc0000; /* red */
-    --success: #008000; /* green */
+    --primary: #0000ff;
+    --secondary: #ff8000;
+    --danger: #cc0000;
+    --success: #008000;
 }
 
 body {
