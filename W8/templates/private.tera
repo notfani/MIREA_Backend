@@ -6,7 +6,6 @@
     <title>Личный кабинет</title>
     <link id="themeCss" rel="stylesheet" href="/css/{{ theme | default(value="light") }}.css">
     <style>
-        /* минимальные встроенные стили, чтобы не раздувать файл */
         main{max-width:960px;margin:24px auto;padding:0 16px}
         header img{max-width:100%;height:auto;border-radius:8px}
         ul.files{list-style:none;padding:0}
@@ -88,7 +87,6 @@
 </main>
 
 <script>
-/* ---------- Выход ---------- */
 document.getElementById('btnLogout').addEventListener('click', async () => {
     try {
         await fetch('/api/logout', { method: 'POST', credentials: 'same-origin' });
@@ -99,7 +97,6 @@ document.getElementById('btnLogout').addEventListener('click', async () => {
     location.href = '/';
 });
 
-/* ---------- Смена темы ---------- */
 const themeMapCss = {
     light: '/css/light.css',
     dark:  '/css/dark.css',
@@ -179,15 +176,15 @@ uploadForm.addEventListener('submit', async (e) => {
         });
         const result = await response.json().catch(() => ({}));
         if (response.ok && result.ok) {
-            showUploadMessage('✅ Файл успешно загружен!', true);
+            showUploadMessage('Файл успешно загружен!', true);
             pdfFile.value = '';
             setTimeout(() => location.reload(), 1500);
         } else {
             const errorMsg = result.error || result.message || 'Ошибка при загрузке файла';
-            showUploadMessage('❌ ' + errorMsg);
+            showUploadMessage(errorMsg);
         }
     } catch (error) {
-        showUploadMessage('❌ Ошибка соединения с сервером');
+        showUploadMessage('Ошибка соединения с сервером');
     } finally {
         uploadBtn.disabled = false;
         uploadBtn.textContent = 'OK';
@@ -214,12 +211,12 @@ document.querySelectorAll('.delete-btn').forEach(btn => {
                 location.reload();
             } else {
                 const errorMsg = result.error || result.message || 'Ошибка при удалении файла';
-                alert('❌ ' + errorMsg);
+                alert(errorMsg);
                 e.target.disabled = false;
                 e.target.textContent = origText;
             }
         } catch (error) {
-            alert('❌ Ошибка соединения с сервером');
+            alert('Ошибка соединения с сервером');
             e.target.disabled = false;
             e.target.textContent = origText;
         }
