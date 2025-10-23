@@ -91,7 +91,6 @@ def plot_all():
                     transparent.save(output_path)
                     print(f"Generated chart with watermark: {output_path}")
             except Exception as e:
-                # if watermarking fails, copy without watermark
                 print(f"Watermark failed, saving without: {e}")
                 try:
                     from shutil import copyfile

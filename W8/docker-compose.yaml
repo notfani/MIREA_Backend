@@ -25,6 +25,14 @@ services:
       - "6379:6379"
     restart: unless-stopped
 
+  charts-generator:
+    build:
+      context: .
+      dockerfile: Dockerfile.python
+    volumes:
+      - ./static:/app/static
+    restart: "no"
+
   rust:
     build: .
     depends_on:
@@ -32,11 +40,14 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
+      charts-generator:
+        condition: service_completed_successfully
     environment:
       ROCKET_DATABASES: '{postgres={url="postgres://postgres:postgres@db:5432/postgres"}}'
       REDIS_URL: 'redis://redis:6379'
     volumes:
       - ./uploads:/app/uploads
+      - ./static:/app/static:ro
     restart: unless-stopped
 
   nginx:
