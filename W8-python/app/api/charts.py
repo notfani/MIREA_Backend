@@ -11,7 +11,7 @@ def plot_all():
         print(f"Skipping chart generation - dependencies not available: {e}")
         return
 
-    from models import Fixture
+    from models import Fixture, db
     import tempfile
 
     try:

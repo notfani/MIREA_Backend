@@ -1,0 +1,9 @@
+{
+  "charts": [
+    "chart_salary_by_department.png",
+    "chart_performance_vs_age.png",
+    "chart_projects_by_department.png",
+    "chart_registrations_timeline.png"
+  ],
+  "generated_at": "2025-10-23T17:38:20.889767"
+}
